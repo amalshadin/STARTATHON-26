@@ -1,18 +1,34 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../providers/doctor_state_provider.dart';
-import '../../../models/patient.dart';
+import '../../../providers/doctor_portal_provider.dart';
+import '../../../models/doctor/patient_record.dart';
 import '../patients/patient_detail_screen.dart';
 
-class DoctorDashboardScreen extends StatelessWidget {
+class DoctorDashboardScreen extends StatefulWidget {
   const DoctorDashboardScreen({Key? key}) : super(key: key);
 
   @override
+  State<DoctorDashboardScreen> createState() => _DoctorDashboardScreenState();
+}
+
+class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<DoctorPortalProvider>().fetchPatients();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final provider = context.watch<DoctorStateProvider>();
+    final provider = context.watch<DoctorPortalProvider>();
+    final doctor = provider.currentDoctor;
     final patients = provider.patients;
-    final activeToday = patients.where((p) => p.complianceStreak > 0).length;
-    final highRisk = patients.where((p) => p.needsAttention).toList();
+    
+    final activeToday = patients.length; 
+    final highRisk = <PatientRecord>[];
 
     return SafeArea(
       child: Scaffold(
@@ -29,10 +45,10 @@ class DoctorDashboardScreen extends StatelessWidget {
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Text(
-                          'Dr. Sarah Jenkins',
-                          style: TextStyle(
+                          doctor?.fullName ?? 'Dr. Unknown',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
@@ -40,10 +56,10 @@ class DoctorDashboardScreen extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
-                          'Neurology Dept • City Hospital',
-                          style: TextStyle(
+                          '${doctor?.specialization ?? 'Neurology'} • ${doctor?.hospitalName ?? 'City Hospital'}',
+                          style: const TextStyle(
                             color: Colors.white54,
                             fontSize: 14,
                           ),
@@ -92,7 +108,7 @@ class DoctorDashboardScreen extends StatelessWidget {
 
               // Attention Feed
               const Text(
-                'Attention Needed',
+                'Recent Patients',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -101,20 +117,22 @@ class DoctorDashboardScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Expanded(
-                child: highRisk.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'No alerts at this time.',
-                          style: TextStyle(color: Colors.white54),
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: highRisk.length,
-                        itemBuilder: (context, index) {
-                          final patient = highRisk[index];
-                          return _buildAttentionCard(context, patient);
-                        },
-                      ),
+                child: provider.isLoadingPatients
+                    ? const Center(child: CircularProgressIndicator(color: Color(0xFF00E5FF)))
+                    : patients.isEmpty
+                        ? const Center(
+                            child: Text(
+                              'No patients enrolled yet.',
+                              style: TextStyle(color: Colors.white54),
+                            ),
+                          )
+                        : ListView.builder(
+                            itemCount: patients.length,
+                            itemBuilder: (context, index) {
+                              final patient = patients[index];
+                              return _buildAttentionCard(context, patient, provider);
+                            },
+                          ),
               ),
             ],
           ),
@@ -156,9 +174,10 @@ class DoctorDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAttentionCard(BuildContext context, Patient patient) {
+  Widget _buildAttentionCard(BuildContext context, PatientRecord patient, DoctorPortalProvider provider) {
     return GestureDetector(
       onTap: () {
+        provider.selectPatient(patient);
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -172,17 +191,17 @@ class DoctorDashboardScreen extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFF161F36),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3)),
+          border: Border.all(color: Colors.transparent),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFFF59E0B).withOpacity(0.1),
+                color: const Color(0xFF3B82F6).withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.warning_rounded, color: Color(0xFFF59E0B)),
+              child: const Icon(Icons.person, color: Color(0xFF3B82F6)),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -190,7 +209,7 @@ class DoctorDashboardScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    '${patient.name} (${patient.id})',
+                    '${patient.fullName} (${patient.id.length > 8 ? patient.id.substring(0, 8) : patient.id})',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
@@ -199,7 +218,9 @@ class DoctorDashboardScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    patient.alertMessage ?? 'Needs review',
+                    patient.notes.isNotEmpty ? patient.notes : 'No recent notes',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 14,

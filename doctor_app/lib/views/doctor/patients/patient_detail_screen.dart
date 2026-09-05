@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../../../providers/doctor_state_provider.dart';
-import '../../../models/patient.dart';
+import '../../../providers/doctor_portal_provider.dart';
+import '../../../models/doctor/patient_record.dart';
 import 'package:intl/intl.dart';
 
 class PatientDetailScreen extends StatefulWidget {
@@ -15,12 +15,19 @@ class PatientDetailScreen extends StatefulWidget {
 }
 
 class _PatientDetailScreenState extends State<PatientDetailScreen> {
-  int _selectedTab = 0; // 0: SBAR, 1: Telemetry
+  int _selectedTab = 0; // 0: History, 1: Trends
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<DoctorStateProvider>();
-    final patient = provider.patients.firstWhere((p) => p.id == widget.patientId);
+    final provider = context.watch<DoctorPortalProvider>();
+    final patient = provider.selectedPatient;
+    
+    if (patient == null || patient.id != widget.patientId) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF0A0F1D),
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF00E5FF))),
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0F1D),
@@ -29,7 +36,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         title: Text(
-          patient.name,
+          patient.fullName,
           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
       ),
@@ -46,15 +53,19 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           // Tab Content
           Expanded(
             child: _selectedTab == 0
-                ? _buildSbarFeed(patient)
-                : _buildTelemetryTrends(patient),
+                ? _buildHistoryFeed(provider)
+                : _buildTelemetryTrends(provider),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildHeader(Patient patient) {
+  Widget _buildHeader(PatientRecord patient) {
+    final age = patient.dateOfBirth != null
+        ? DateTime.now().difference(patient.dateOfBirth!).inDays ~/ 365
+        : 'Unknown';
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(20),
@@ -69,7 +80,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '${patient.age}yo • ${patient.strokeSubtype} Stroke',
+                '${age}yo • ${patient.gender}',
                 style: const TextStyle(color: Colors.white70, fontSize: 16),
               ),
               Container(
@@ -79,34 +90,16 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  '${patient.affectedHand} Hand',
+                  '${patient.affectedSide.toUpperCase()} Hand',
                   style: const TextStyle(color: Color(0xFF00E5FF), fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          const Text(
-            'Baseline Calibration',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: patient.baselineCalibration.entries.map((e) {
-              return Column(
-                children: [
-                  Text(
-                    e.key,
-                    style: const TextStyle(color: Colors.white54, fontSize: 12),
-                  ),
-                  Text(
-                    '${e.value}°',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              );
-            }).toList(),
+          const SizedBox(height: 12),
+          Text(
+            patient.notes.isNotEmpty ? patient.notes : 'No clinical notes provided.',
+            style: const TextStyle(color: Colors.white54, fontSize: 14),
           ),
         ],
       ),
@@ -133,7 +126,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                 ),
                 child: Center(
                   child: Text(
-                    'SBAR Clinical Feed',
+                    'Session History',
                     style: TextStyle(
                       color: _selectedTab == 0 ? const Color(0xFF00E5FF) : Colors.white54,
                       fontWeight: _selectedTab == 0 ? FontWeight.bold : FontWeight.normal,
@@ -154,7 +147,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                 ),
                 child: Center(
                   child: Text(
-                    'Telemetry Trends',
+                    'Progress Metrics',
                     style: TextStyle(
                       color: _selectedTab == 1 ? const Color(0xFF00E5FF) : Colors.white54,
                       fontWeight: _selectedTab == 1 ? FontWeight.bold : FontWeight.normal,
@@ -169,91 +162,93 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
     );
   }
 
-  Widget _buildSbarFeed(Patient patient) {
-    if (patient.reports.isEmpty) {
+  Widget _buildHistoryFeed(DoctorPortalProvider provider) {
+    if (provider.isLoadingHistory) {
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF00E5FF)));
+    }
+    if (provider.activePatientHistory.isEmpty) {
       return const Center(
-        child: Text('No clinical reports yet.', style: TextStyle(color: Colors.white54)),
+        child: Text('No therapy sessions recorded yet.', style: TextStyle(color: Colors.white54)),
       );
     }
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 20),
-      itemCount: patient.reports.length,
+      itemCount: provider.activePatientHistory.length,
       itemBuilder: (context, index) {
-        final report = patient.reports[index];
-        return _buildSbarCard(report);
+        final session = provider.activePatientHistory[index];
+        return _buildSessionCard(session);
       },
     );
   }
 
-  Widget _buildSbarCard(SBARReport report) {
+  Widget _buildSessionCard(dynamic session) {
+    // Attempt to parse standard fields out of the dynamic map
+    final dateStr = session['date'] ?? session['created_at'];
+    final date = dateStr != null ? DateTime.tryParse(dateStr) : null;
+    final gameName = session['game_name'] ?? 'Therapy Session';
+    final score = session['score'] ?? 0;
+    final accuracy = session['accuracy'] ?? 0.0;
+    
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: const Color(0xFF161F36),
         borderRadius: BorderRadius.circular(16),
       ),
-      child: ExpansionTile(
-        iconColor: Colors.white,
-        collapsedIconColor: Colors.white54,
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
         title: Text(
-          DateFormat('MMM d, yyyy').format(report.date),
+          date != null ? DateFormat('MMM d, yyyy - h:mm a').format(date) : 'Unknown Date',
           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        subtitle: Text(
-          report.situation,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: Colors.white54),
-        ),
-        childrenPadding: const EdgeInsets.all(16),
-        children: [
-          _buildSbarSection('S - Situation', report.situation, const Color(0xFFF59E0B)),
-          _buildSbarSection('B - Background', report.background, const Color(0xFF3B82F6)),
-          _buildSbarSection('A - Assessment', report.assessment, const Color(0xFF10B981)),
-          _buildSbarSection('R - Recommendation', report.recommendation, const Color(0xFF00E5FF)),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: () {},
-              icon: const Icon(Icons.share, color: Color(0xFF00E5FF), size: 16),
-              label: const Text('Export PDF', style: TextStyle(color: Color(0xFF00E5FF))),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            Text(
+              gameName.toString(),
+              style: const TextStyle(color: Colors.white70),
             ),
-          ),
-        ],
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Text(
+                  'Score: $score',
+                  style: const TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(width: 16),
+                Text(
+                  'Accuracy: ${accuracy}%',
+                  style: const TextStyle(color: Color(0xFF00E5FF), fontWeight: FontWeight.w600),
+                ),
+              ],
+            )
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildSbarSection(String title, String content, Color color) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            content,
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTelemetryTrends(Patient patient) {
-    if (patient.telemetry.isEmpty) {
+  Widget _buildTelemetryTrends(DoctorPortalProvider provider) {
+    if (provider.isLoadingHistory) {
+      return const Center(child: CircularProgressIndicator(color: Color(0xFF00E5FF)));
+    }
+    
+    final history = provider.activePatientHistory;
+    if (history.isEmpty) {
       return const Center(
         child: Text('No telemetry data available.', style: TextStyle(color: Colors.white54)),
       );
     }
 
-    final spots = patient.telemetry.asMap().entries.map((e) {
-      return FlSpot(e.key.toDouble(), e.value.arom);
+    final spots = history.asMap().entries.map((e) {
+      // parse accuracy, default to 0
+      double acc = 0;
+      if (e.value['accuracy'] != null) {
+        if (e.value['accuracy'] is int) acc = (e.value['accuracy'] as int).toDouble();
+        else if (e.value['accuracy'] is double) acc = e.value['accuracy'] as double;
+      }
+      return FlSpot(e.key.toDouble(), acc);
     }).toList();
 
     return Padding(
@@ -262,7 +257,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Active Range of Motion (30 Days)',
+            'Accuracy Trends',
             style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 30),
@@ -290,7 +285,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                       reservedSize: 40,
                       getTitlesWidget: (value, meta) {
                         return Text(
-                          '${value.toInt()}°',
+                          '${value.toInt()}%',
                           style: const TextStyle(color: Colors.white54, fontSize: 12),
                         );
                       },
@@ -299,7 +294,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                 ),
                 borderData: FlBorderData(show: false),
                 minX: 0,
-                maxX: patient.telemetry.length.toDouble() - 1,
+                maxX: (history.length > 1 ? history.length - 1 : 1).toDouble(),
                 minY: 0,
                 maxY: 100,
                 lineBarsData: [
@@ -309,7 +304,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                     color: const Color(0xFF00E5FF),
                     barWidth: 3,
                     isStrokeCapRound: true,
-                    dotData: FlDotData(show: false),
+                    dotData: FlDotData(show: true),
                     belowBarData: BarAreaData(
                       show: true,
                       color: const Color(0xFF00E5FF).withOpacity(0.2),

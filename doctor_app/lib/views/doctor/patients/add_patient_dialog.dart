@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../providers/doctor_state_provider.dart';
-import '../../../models/patient.dart';
-import 'dart:math';
+import '../../../providers/doctor_portal_provider.dart';
 import 'package:flutter/services.dart';
 
 class AddPatientDialog extends StatefulWidget {
@@ -14,39 +12,50 @@ class AddPatientDialog extends StatefulWidget {
 
 class _AddPatientDialogState extends State<AddPatientDialog> {
   final _nameController = TextEditingController();
-  final _ageController = TextEditingController();
-  String _affectedHand = 'Right';
-  String _strokeSubtype = 'Ischemic';
+  final _dobController = TextEditingController();
+  final _strokeDateController = TextEditingController();
+  final _notesController = TextEditingController();
   
+  String _gender = 'Male';
+  String _affectedSide = 'left';
+  bool _isLoading = false;
   bool _isSubmitted = false;
-  String? _generatedId;
+  String? _generatedPin;
 
-  void _submit() {
-    if (_nameController.text.isEmpty || _ageController.text.isEmpty) return;
+  Future<void> _submit() async {
+    if (_nameController.text.isEmpty) return;
 
-    final random = Random();
-    final newId = 'HS-${random.nextInt(9000) + 1000}';
-    
-    final newPatient = Patient(
-      id: newId,
-      name: _nameController.text,
-      age: int.tryParse(_ageController.text) ?? 60,
-      affectedHand: _affectedHand,
-      strokeSubtype: _strokeSubtype,
-      complianceStreak: 0,
-      latestSessionScore: 0.0,
-      baselineCalibration: {'Thumb': 0.0, 'Index': 0.0, 'Middle': 0.0},
-      reports: [],
-      telemetry: [],
-      needsAttention: false,
-    );
+    setState(() => _isLoading = true);
+    final data = {
+      'full_name': _nameController.text,
+      'gender': _gender,
+      'date_of_birth': _dobController.text.isNotEmpty ? _dobController.text : null,
+      'stroke_date': _strokeDateController.text.isNotEmpty ? _strokeDateController.text : null,
+      'affected_side': _affectedSide,
+      'notes': _notesController.text,
+    };
 
-    context.read<DoctorStateProvider>().addPatient(newPatient);
-
-    setState(() {
-      _generatedId = newId;
-      _isSubmitted = true;
-    });
+    try {
+      final provider = Provider.of<DoctorPortalProvider>(context, listen: false);
+      final response = await provider.addPatient(data);
+      if (!mounted) return;
+      
+      if (response != null) {
+        setState(() {
+          _generatedPin = response['pin']?.toString() ?? 'N/A';
+          _isSubmitted = true;
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(provider.errorMessage ?? 'Failed to add patient')),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -69,79 +78,81 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
         children: [
           const Text(
             'Add New Patient',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        const SizedBox(height: 20),
-        
-        _buildTextField('Full Name', _nameController),
-        const SizedBox(height: 16),
-        _buildTextField('Age', _ageController, isNumber: true),
-        const SizedBox(height: 16),
-        
-        const Text('Affected Hand', style: TextStyle(color: Colors.white70)),
-        const SizedBox(height: 8),
-        SegmentedButton<String>(
-          segments: const [
-            ButtonSegment(value: 'Left', label: Text('Left')),
-            ButtonSegment(value: 'Right', label: Text('Right')),
-          ],
-          selected: {_affectedHand},
-          onSelectionChanged: (Set<String> newSelection) {
-            setState(() => _affectedHand = newSelection.first);
-          },
-          style: SegmentedButton.styleFrom(
-            foregroundColor: Colors.white,
-            selectedForegroundColor: const Color(0xFF00E5FF),
-            backgroundColor: const Color(0xFF0A0F1D),
-            selectedBackgroundColor: const Color(0xFF00E5FF).withOpacity(0.2),
-          ),
-        ),
-        const SizedBox(height: 16),
-
-        const Text('Stroke Subtype', style: TextStyle(color: Colors.white70)),
-        const SizedBox(height: 8),
-        SegmentedButton<String>(
-          segments: const [
-            ButtonSegment(value: 'Ischemic', label: Text('Ischemic')),
-            ButtonSegment(value: 'Hemorrhagic', label: Text('Hemorrhagic')),
-          ],
-          selected: {_strokeSubtype},
-          onSelectionChanged: (Set<String> newSelection) {
-            setState(() => _strokeSubtype = newSelection.first);
-          },
-          style: SegmentedButton.styleFrom(
-            foregroundColor: Colors.white,
-            selectedForegroundColor: const Color(0xFF00E5FF),
-            backgroundColor: const Color(0xFF0A0F1D),
-            selectedBackgroundColor: const Color(0xFF00E5FF).withOpacity(0.2),
-          ),
-        ),
-        const SizedBox(height: 32),
-
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _submit,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00E5FF),
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
             ),
-            child: const Text('Generate Profile', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
           ),
-        ),
-      ],
-    ));
+          const SizedBox(height: 20),
+          _buildTextField('Full Name', _nameController),
+          const SizedBox(height: 16),
+          DropdownButtonFormField<String>(
+            value: _gender,
+            dropdownColor: const Color(0xFF161F36),
+            style: const TextStyle(color: Colors.white),
+            decoration: const InputDecoration(
+              labelText: 'Gender', 
+              labelStyle: TextStyle(color: Colors.white54),
+              filled: true,
+              fillColor: Color(0xFF0A0F1D),
+            ),
+            items: ['Male', 'Female', 'Other'].map((String value) {
+              return DropdownMenuItem<String>(
+                value: value,
+                child: Text(value),
+              );
+            }).toList(),
+            onChanged: (val) => setState(() => _gender = val!),
+          ),
+          const SizedBox(height: 16),
+          _buildTextField('Date of Birth (YYYY-MM-DD)', _dobController),
+          const SizedBox(height: 16),
+          _buildTextField('Stroke Date (YYYY-MM-DD)', _strokeDateController),
+          const SizedBox(height: 16),
+          const Text('Affected Hand', style: TextStyle(color: Colors.white70)),
+          const SizedBox(height: 8),
+          SegmentedButton<String>(
+            segments: const [
+              ButtonSegment(value: 'left', label: Text('Left')),
+              ButtonSegment(value: 'right', label: Text('Right')),
+            ],
+            selected: {_affectedSide},
+            onSelectionChanged: (Set<String> newSelection) {
+              setState(() => _affectedSide = newSelection.first);
+            },
+            style: SegmentedButton.styleFrom(
+              foregroundColor: Colors.white,
+              selectedForegroundColor: const Color(0xFF00E5FF),
+              backgroundColor: const Color(0xFF0A0F1D),
+              selectedBackgroundColor: const Color(0xFF00E5FF).withOpacity(0.2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildTextField('Clinical Notes', _notesController),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isLoading ? null : _submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF00E5FF),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: _isLoading 
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2))
+                : const Text('Generate Profile', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, {bool isNumber = false}) {
+  Widget _buildTextField(String label, TextEditingController controller) {
     return TextField(
       controller: controller,
-      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         labelText: label,
@@ -175,10 +186,10 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
           ),
           child: Column(
             children: [
-              const Text('Generated Patient ID:', style: TextStyle(color: Colors.white54)),
+              const Text('Generated Patient PIN / ID:', style: TextStyle(color: Colors.white54)),
               const SizedBox(height: 8),
               Text(
-                _generatedId!,
+                _generatedPin ?? 'N/A',
                 style: const TextStyle(color: Color(0xFF00E5FF), fontSize: 28, fontWeight: FontWeight.bold),
               ),
             ],
@@ -186,7 +197,7 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
         ),
         const SizedBox(height: 16),
         const Text(
-          'Give this ID to your patient to log into their home glove app.',
+          'Give this PIN to your patient to log into their home glove app.',
           textAlign: TextAlign.center,
           style: TextStyle(color: Colors.white70),
         ),
@@ -200,14 +211,16 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
             ),
             ElevatedButton.icon(
               onPressed: () {
-                Clipboard.setData(ClipboardData(text: _generatedId!));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Patient ID copied to clipboard!')),
-                );
+                if (_generatedPin != null) {
+                  Clipboard.setData(ClipboardData(text: _generatedPin!));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Patient PIN copied to clipboard!')),
+                  );
+                }
                 Navigator.pop(context);
               },
               icon: const Icon(Icons.copy, color: Colors.black),
-              label: const Text('Copy ID', style: TextStyle(color: Colors.black)),
+              label: const Text('Copy PIN', style: TextStyle(color: Colors.black)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF00E5FF),
               ),
