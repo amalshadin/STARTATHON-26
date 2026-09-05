@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/design_tokens.dart';
 import '../../providers/ble_telemetry_provider.dart';
 import '../../providers/calibration_provider.dart';
+import '../../services/patient_api_service.dart';
 
 enum EntityType { drone, fuelCore, empWave }
 
@@ -67,6 +68,10 @@ class _SpaceGameScreenState extends State<SpaceGameScreen> with SingleTickerProv
   bool _debugLaser = false;
   bool _debugTractor = false;
   bool _debugShield = false;
+
+  final PatientApiService _apiService = PatientApiService();
+  final DateTime _startTime = DateTime.now();
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -153,9 +158,13 @@ class _SpaceGameScreenState extends State<SpaceGameScreen> with SingleTickerProv
        
        int roll = _random.nextInt(100);
        EntityType type;
-       if (roll < 60) type = EntityType.drone; // 60% Drone
-       else if (roll < 85) type = EntityType.fuelCore; // 25% Core
-       else type = EntityType.empWave; // 15% EMP
+       if (roll < 60) {
+         type = EntityType.drone; // 60% Drone
+       } else if (roll < 85) {
+         type = EntityType.fuelCore; // 25% Core
+       } else {
+         type = EntityType.empWave; // 15% EMP
+       }
        
        _entities.add(SpaceEntity(id: DateTime.now().toString(), type: type, position: Offset(randX, -50)));
     }
@@ -244,14 +253,49 @@ class _SpaceGameScreenState extends State<SpaceGameScreen> with SingleTickerProv
     // Death Check
     if (_hullIntegrity <= 0) {
        _hullIntegrity = 0;
-       _showDeathModal();
+       _handleGameEnd();
     }
     
     setState(() {});
   }
 
-  void _showDeathModal() {
+  Future<void> _handleGameEnd() async {
+    if (_isSubmitting) return;
+    
     _gameLoop.stop();
+    setState(() => _isSubmitting = true);
+    
+    try {
+      final totalTargets = _dronesDestroyed + _dronesMissed;
+      final double accuracy = totalTargets > 0 ? (_dronesDestroyed / totalTargets.toDouble()) : 0.0;
+      await _apiService.submitGameData(
+        gameId: '00000000-0000-0000-0000-000000000003', // Placeholder UUID
+        startedAt: _startTime,
+        durationMs: DateTime.now().difference(_startTime).inMilliseconds,
+        score: (_dronesDestroyed * 50) + (_coresHarvested * 100),
+        accuracy: accuracy,
+        completionRate: 1.0,
+        repetitions: _dronesDestroyed + _coresHarvested,
+        resultsMetrics: {
+          'drones_destroyed': _dronesDestroyed,
+          'cores_harvested': _coresHarvested,
+          'shield_successes': _shieldSuccesses,
+        },
+        calculatedMetrics: {
+          'smoothness_score': _framesWithMovement > 0 ? (100 - (_totalPitchRollDelta / _framesWithMovement * 50)).clamp(0, 100) : 100,
+        }
+      );
+    } catch (e) {
+      debugPrint('Failed to submit game data: $e');
+    }
+    
+    if (mounted) {
+      setState(() => _isSubmitting = false);
+      _showDeathModal();
+    }
+  }
+
+  void _showDeathModal() {
     BuildContext parentContext = context;
     
     double avgDelta = _framesWithMovement > 0 ? _totalPitchRollDelta / _framesWithMovement : 0;

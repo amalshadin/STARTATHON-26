@@ -53,25 +53,31 @@ class HomeScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               
-              // Daily Recovery Ring Placeholder
               Expanded(
-                child: Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.borderRadiusMedium)),
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.track_changes, size: 80, color: DesignTokens.primaryColor),
-                        const SizedBox(height: 16),
-                        Text('Daily Recovery Goal', style: DesignTokens.headingStyle.copyWith(color: DesignTokens.textPrimaryLight)),
-                        const Text('75% Complete', style: DesignTokens.bodyStyle),
-                      ],
-                    ),
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.health_and_safety_rounded, 
+                        size: 80, 
+                        color: DesignTokens.primaryColor.withValues(alpha: 0.5)
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Ready for Therapy?', 
+                        style: DesignTokens.headingStyle.copyWith(color: Colors.grey)
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Connect your glove and press Quick Start below.', 
+                        textAlign: TextAlign.center, 
+                        style: DesignTokens.bodyStyle.copyWith(color: Colors.grey)
+                      ),
+                    ],
                   ),
-                ).animate().scale(delay: 200.ms, duration: 400.ms, curve: Curves.easeOutBack),
+                ),
               ),
-              const SizedBox(height: 24),
               
               // Quick Start Card
               ElevatedButton.icon(
