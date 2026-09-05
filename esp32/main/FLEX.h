@@ -4,9 +4,9 @@
 #include <stdint.h>
 
 struct FLEXData {
-  int flex1;
-  int flex2;
-  int flex3;
+  uint16_t flex1;
+  uint16_t flex2;
+  uint16_t flex3;
 };
 
 class FLEXManager {
