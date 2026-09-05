@@ -52,3 +52,8 @@ void BLEManager::update(String value) {
   characteristic->setValue(value.c_str());
   characteristic->notify();
 }
+
+void BLEManager::update(uint8_t* data, size_t length) {
+  characteristic->setValue(data, length);
+  characteristic->notify();
+}
