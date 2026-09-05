@@ -24,34 +24,42 @@ except Exception as e:
 fig = plt.figure(figsize=(8, 8))
 ax = fig.add_subplot(111, projection='3d')
 
-# Global variables for the filter
+# Global variables for the filter and state
 last_time = time.time()
 pitch = 0.0
 roll = 0.0
+accX = accY = accZ = None
+gyroX = gyroY = gyroZ = None
 
 def animate(i):
     global last_time, pitch, roll
+    global accX, accY, accZ, gyroX, gyroY, gyroZ
     
-    accX, accY, accZ = None, None, None
-    gyroX, gyroY, gyroZ = None, None, None
+    updated = False
     
     # Read serial buffer
     while ser.in_waiting > 0:
         try:
             line = ser.readline().decode('utf-8', errors='ignore').strip()
-            match = re.search(r'AccX:\s*(-?\d+).*?AccY:\s*(-?\d+).*?AccZ:\s*(-?\d+).*?GyroX:\s*(-?\d+).*?GyroY:\s*(-?\d+).*?GyroZ:\s*(-?\d+)', line)
             
-            if match:
-                accX = float(match.group(1))
-                accY = float(match.group(2))
-                accZ = float(match.group(3))
-                gyroX = float(match.group(4))
-                gyroY = float(match.group(5))
-                gyroZ = float(match.group(6))
+            # Parse Accel line: "Accel X: 123, Accel Y: 456, Accel Z: 789"
+            acc_match = re.search(r'Accel X:\s*(-?\d+),\s*Accel Y:\s*(-?\d+),\s*Accel Z:\s*(-?\d+)', line)
+            if acc_match:
+                accX = float(acc_match.group(1))
+                accY = float(acc_match.group(2))
+                accZ = float(acc_match.group(3))
+            
+            # Parse Gyro line: "Gyro X: 123, Gyro Y: 456, Gyro Z: 789"
+            gyro_match = re.search(r'Gyro X:\s*(-?\d+),\s*Gyro Y:\s*(-?\d+),\s*Gyro Z:\s*(-?\d+)', line)
+            if gyro_match:
+                gyroX = float(gyro_match.group(1))
+                gyroY = float(gyro_match.group(2))
+                gyroZ = float(gyro_match.group(3))
+                updated = True # We consider a frame complete when we get Gyro data
         except Exception:
             pass 
 
-    if accX is not None:
+    if updated and accX is not None and gyroX is not None:
         current_time = time.time()
         dt = current_time - last_time
         last_time = current_time

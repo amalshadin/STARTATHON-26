@@ -1,9 +1,11 @@
+#include "../../main/PIN.h"
+
 #include <Wire.h>
 
 void setup() {
   Serial.begin(115200);
 
-  Wire.begin(21, 22);
+  Wire.begin(PIN::SDAPin, PIN::SCLPin);
 
   Serial.println("I2C Scanner");
 
