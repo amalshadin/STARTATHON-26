@@ -20,7 +20,7 @@ public:
   void begin();
   MPUData read();
   void InitializedMessage();
-  void printData(const MPUData& data);
+  static void printData(const MPUData& data);
 };
 
 #endif

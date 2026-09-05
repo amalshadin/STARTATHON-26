@@ -12,7 +12,7 @@ struct FLEXData {
 class FLEXManager {
 public:
   FLEXData read();
-  void printData(const FLEXData& data);
+  static void printData(const FLEXData& data);
 };
 
 #endif
