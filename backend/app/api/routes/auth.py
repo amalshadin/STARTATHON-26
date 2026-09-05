@@ -103,8 +103,8 @@ def verify_patient_pin(
         )
 
     # 5. Mark invitation as used
-    invitation.is_used = True
-    db.commit()
+    # invitation.is_used = True
+    # db.commit()
 
     # 6. Generate Supabase magic link
     magic_link = None
