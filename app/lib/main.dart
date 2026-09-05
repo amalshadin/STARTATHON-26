@@ -6,11 +6,14 @@ import 'providers/ble_telemetry_provider.dart';
 import 'providers/calibration_provider.dart';
 import 'providers/game_session_provider.dart';
 import 'providers/navigation_provider.dart';
-import 'views/root_scaffold.dart';
 
 import 'views/auth/login_screen.dart';
 
-void main() {
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   runApp(const HapticSyncApp());
 }
 

@@ -1,9 +1,9 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/design_tokens.dart';
 import '../../providers/ble_telemetry_provider.dart';
 import '../../providers/calibration_provider.dart';
+import '../../services/patient_api_service.dart';
 
 enum CrateState { idle, grabbed, placed }
 
@@ -37,7 +37,6 @@ class _CargoCraneScreenState extends State<CargoCraneScreen> with SingleTickerPr
   // Crates & Zones
   final List<CargoCrate> _crates = [];
   final Rect _pickZone = const Rect.fromLTWH(20, 200, 100, 400);
-  final Rect _dropZone = const Rect.fromLTWH(250, 200, 120, 400); // Will scale dynamically
   CargoCrate? _grabbedCrate;
   
   // Health & Failure Timers
@@ -57,6 +56,10 @@ class _CargoCraneScreenState extends State<CargoCraneScreen> with SingleTickerPr
 
   // Debug controls
   bool _debugPinch = false;
+
+  final PatientApiService _apiService = PatientApiService();
+  final DateTime _startTime = DateTime.now();
+  bool _isSubmitting = false;
 
   @override
   void initState() {
@@ -138,12 +141,46 @@ class _CargoCraneScreenState extends State<CargoCraneScreen> with SingleTickerPr
     );
     
     if (_shields <= 0) {
+      _handleGameEnd();
+    }
+  }
+
+  Future<void> _handleGameEnd() async {
+    if (_isSubmitting) return;
+    
+    _gameLoop.stop();
+    setState(() => _isSubmitting = true);
+    
+    try {
+      final double accuracy = 7 > 0 ? (_cratesPlaced / 7.0) : 0.0;
+      await _apiService.submitGameData(
+        gameId: '00000000-0000-0000-0000-000000000002', // Placeholder UUID
+        startedAt: _startTime,
+        durationMs: DateTime.now().difference(_startTime).inMilliseconds,
+        score: _cratesPlaced * 100, // example scoring
+        accuracy: accuracy,
+        completionRate: accuracy,
+        repetitions: _cratesPlaced,
+        resultsMetrics: {
+          'total_transit_time_s': _totalTransitTime,
+          'slip_count': _slipCount,
+          'total_hold_before_slip_s': _totalHoldBeforeSlip,
+        },
+        calculatedMetrics: {
+          'safe_posture_frames_percent': _totalFrames > 0 ? (_safeFrames / _totalFrames) : 0.0,
+        }
+      );
+    } catch (e) {
+      debugPrint('Failed to submit game data: $e');
+    }
+    
+    if (mounted) {
+      setState(() => _isSubmitting = false);
       _showEndOfShiftModal();
     }
   }
 
   void _showEndOfShiftModal() {
-    _gameLoop.stop();
     BuildContext parentContext = context;
     
     final int avgTransit = _cratesPlaced > 0 ? (_totalTransitTime / _cratesPlaced).round() : 0;
@@ -285,7 +322,7 @@ class _CargoCraneScreenState extends State<CargoCraneScreen> with SingleTickerPr
             
             // Check win condition
             if (_cratesPlaced == 7) {
-               _showEndOfShiftModal();
+               _handleGameEnd();
             }
          } else {
             // Mid-Transit Drop Failure

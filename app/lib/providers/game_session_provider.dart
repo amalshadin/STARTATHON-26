@@ -2,8 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
 class GameSessionProvider extends ChangeNotifier {
-  String? _currentSessionId;
-  DateTime? _startTime;
   int _score = 0;
   bool _isActive = false;
   double _difficultyMultiplier = 1.0;
@@ -13,8 +11,6 @@ class GameSessionProvider extends ChangeNotifier {
   double get difficultyMultiplier => _difficultyMultiplier;
 
   void startGame() {
-    _currentSessionId = const Uuid().v4();
-    _startTime = DateTime.now();
     _score = 0;
     _isActive = true;
     _difficultyMultiplier = 1.0;

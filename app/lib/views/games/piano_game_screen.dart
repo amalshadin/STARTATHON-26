@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/design_tokens.dart';
 import '../../providers/ble_telemetry_provider.dart';
 import '../../providers/calibration_provider.dart';
+import '../../services/patient_api_service.dart';
 
 enum Difficulty { gentle, standard, challenge }
 
@@ -36,6 +37,7 @@ class RibbonNote {
   RibbonState state;
   double holdProgress; // 0.0 to 1.0
   DateTime? lastHoldTime;
+  bool isDestroyed;
 
   RibbonNote({
     required this.lane,
@@ -43,11 +45,14 @@ class RibbonNote {
     required this.length,
     this.state = RibbonState.falling,
     this.holdProgress = 0.0,
+    this.isDestroyed = false,
   });
 }
 
 class PianoGameScreen extends StatefulWidget {
-  const PianoGameScreen({super.key});
+  final Difficulty mode;
+  
+  const PianoGameScreen({super.key, this.mode = Difficulty.standard});
 
   @override
   State<PianoGameScreen> createState() => _PianoGameScreenState();
@@ -55,9 +60,12 @@ class PianoGameScreen extends StatefulWidget {
 
 class _PianoGameScreenState extends State<PianoGameScreen> with SingleTickerProviderStateMixin {
   late AnimationController _gameLoop;
-  
-  Difficulty _currentDifficulty = Difficulty.standard;
+  late Difficulty _currentDifficulty;
   DifficultySettings get _settings => DifficultySettings.settings[_currentDifficulty]!;
+  final PatientApiService _apiService = PatientApiService();
+  
+  DateTime _startTime = DateTime.now();
+  bool _isSubmitting = false;
   
   final List<RibbonNote> _activeNotes = [];
   final Random _random = Random();
@@ -80,6 +88,7 @@ class _PianoGameScreenState extends State<PianoGameScreen> with SingleTickerProv
   @override
   void initState() {
     super.initState();
+    _currentDifficulty = widget.mode;
     _gameLoop = AnimationController(
       vsync: this,
       duration: const Duration(days: 99), // Run endlessly
@@ -149,8 +158,6 @@ class _PianoGameScreenState extends State<PianoGameScreen> with SingleTickerProv
       } else if (note.state == RibbonState.falling && note.yPosition > _hitZoneY + 50) {
          // Missed the activation window
          note.state = RibbonState.missed;
-         _misses++;
-         _combo = 0;
       }
       
       // Hold phase logic
@@ -183,16 +190,63 @@ class _PianoGameScreenState extends State<PianoGameScreen> with SingleTickerProv
           }
         }
       }
+
+      if (note.state == RibbonState.missed || note.state == RibbonState.completed || note.state == RibbonState.broken || note.yPosition > 1000) {
+        if (note.state == RibbonState.missed) {
+          _misses++;
+          _combo = 0;
+        }
+        note.isDestroyed = true;
+      }
     }
     
     // Remove completed or off-screen notes
-    _activeNotes.removeWhere((note) => note.state == RibbonState.completed || note.yPosition > 1000);
+    _activeNotes.removeWhere((n) => n.isDestroyed);
+    
+    // For demo purposes, end game if score > 1500
+    if (_score > 1500) {
+      _handleGameEnd();
+    }
     
     setState(() {});
   }
 
-  void _showSummary() {
+  Future<void> _handleGameEnd() async {
+    if (_isSubmitting) return;
+    
     _gameLoop.stop();
+    setState(() => _isSubmitting = true);
+    
+    try {
+      final accuracy = _hits + _misses > 0 ? (_hits / (_hits + _misses)) : 0.0;
+      await _apiService.submitGameData(
+        gameId: '00000000-0000-0000-0000-000000000001', // Placeholder UUID
+        startedAt: _startTime,
+        durationMs: DateTime.now().difference(_startTime).inMilliseconds,
+        score: _score,
+        accuracy: accuracy,
+        completionRate: 1.0,
+        repetitions: _hits,
+        resultsMetrics: {
+          'max_combo': _combo,
+          'total_hold_time_s': _totalHoldDuration,
+        },
+        calculatedMetrics: {
+          'flex_rom_mean': [0.5, 0.5, 0.5], // Placeholder calculation
+          'smoothness_score': 0.85,
+        }
+      );
+    } catch (e) {
+      debugPrint('Failed to submit game data: $e');
+    }
+    
+    if (mounted) {
+      setState(() => _isSubmitting = false);
+      _showSummary();
+    }
+  }
+
+  void _showSummary() {
     BuildContext parentContext = context;
     showDialog(
       context: context,

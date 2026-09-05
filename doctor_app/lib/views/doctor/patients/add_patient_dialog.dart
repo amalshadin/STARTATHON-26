@@ -12,6 +12,7 @@ class AddPatientDialog extends StatefulWidget {
 
 class _AddPatientDialogState extends State<AddPatientDialog> {
   final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _dobController = TextEditingController();
   final _strokeDateController = TextEditingController();
   final _notesController = TextEditingController();
@@ -29,6 +30,7 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
     setState(() => _isLoading = true);
     final data = {
       'full_name': _nameController.text,
+      if (_emailController.text.isNotEmpty) 'email': _emailController.text,
       'gender': _gender,
       'date_of_birth': _dobController.text.isNotEmpty ? _dobController.text : null,
       'stroke_date': _strokeDateController.text.isNotEmpty ? _strokeDateController.text : null,
@@ -95,6 +97,8 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
           const SizedBox(height: 20),
           _buildTextField('Full Name', _nameController),
           const SizedBox(height: 16),
+          _buildTextField('Email Address (Optional)', _emailController),
+          const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             value: _gender,
             dropdownColor: const Color(0xFF161F36),
@@ -114,9 +118,9 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
             onChanged: (val) => setState(() => _gender = val!),
           ),
           const SizedBox(height: 16),
-          _buildTextField('Date of Birth (YYYY-MM-DD)', _dobController),
+          _buildDatePicker('Date of Birth', _dobController),
           const SizedBox(height: 16),
-          _buildTextField('Stroke Date (YYYY-MM-DD)', _strokeDateController),
+          _buildDatePicker('Stroke Date', _strokeDateController),
           const SizedBox(height: 16),
           const Text('Affected Hand', style: TextStyle(color: Colors.white70)),
           const SizedBox(height: 8),
@@ -167,6 +171,53 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
         labelStyle: const TextStyle(color: Colors.white54),
         filled: true,
         fillColor: const Color(0xFF0A0F1D),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _selectDate(BuildContext context, TextEditingController controller) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: Color(0xFF00E5FF),
+              onPrimary: Colors.black,
+              surface: Color(0xFF161F36),
+              onSurface: Colors.white,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() {
+        controller.text = "${picked.year.toString().padLeft(4, '0')}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+      });
+    }
+  }
+
+  Widget _buildDatePicker(String label, TextEditingController controller) {
+    return TextField(
+      controller: controller,
+      readOnly: true,
+      onTap: () => _selectDate(context, controller),
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.white54),
+        filled: true,
+        fillColor: const Color(0xFF0A0F1D),
+        suffixIcon: const Icon(Icons.calendar_today, color: Colors.white54),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,

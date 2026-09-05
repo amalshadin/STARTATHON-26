@@ -1,11 +1,49 @@
 import 'package:flutter/foundation.dart';
 import '../models/calibration_data.dart';
-import '../models/sensor_packet.dart';
+import '../services/patient_api_service.dart';
 
 class CalibrationProvider extends ChangeNotifier {
   CalibrationData _calibrationData = CalibrationData.defaultValues();
+  final PatientApiService _apiService = PatientApiService();
 
   CalibrationData get calibrationData => _calibrationData;
+  
+  bool _isLoading = false;
+  bool get isLoading => _isLoading;
+
+  Future<void> fetchLatestCalibration(String deviceId) async {
+    _isLoading = true;
+    notifyListeners();
+    try {
+      final data = await _apiService.getLatestCalibration(deviceId);
+      if (data.isNotEmpty) {
+        _calibrationData = CalibrationData(
+          flexMin: List<double>.from((data['flex_min'] as List).map((e) => e.toDouble())),
+          flexMax: List<double>.from((data['flex_max'] as List).map((e) => e.toDouble())),
+          fsrMin: data['fsr_min']?.toDouble() ?? 0.0,
+          fsrMax: data['fsr_max']?.toDouble() ?? 1023.0,
+        );
+      }
+    } catch (e) {
+      debugPrint('Error fetching calibration: $e');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> saveCalibrationToServer(String deviceId, {String? notes}) async {
+    try {
+      await _apiService.saveCalibration(
+        deviceId, 
+        _calibrationData.flexMin, 
+        _calibrationData.flexMax, 
+        notes: notes
+      );
+    } catch (e) {
+      debugPrint('Error saving calibration: $e');
+    }
+  }
 
   void updateCalibration(CalibrationData newData) {
     _calibrationData = newData;

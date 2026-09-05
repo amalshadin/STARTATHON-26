@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../core/design_tokens.dart';
+import '../../services/patient_api_service.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -22,46 +23,42 @@ class ProfileScreen extends StatelessWidget {
                 child: Icon(Icons.person, size: 60, color: Colors.white),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Patient: Jane Doe',
-                textAlign: TextAlign.center,
-                style: DesignTokens.headingStyle,
-              ),
-              const Text(
-                'Right Hemiparesis - 3 Months Post',
-                textAlign: TextAlign.center,
-                style: DesignTokens.bodyStyle,
+              FutureBuilder<Map<String, dynamic>>(
+                future: PatientApiService().getPatientProfile(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  
+                  final data = snapshot.data ?? {};
+                  final name = data['name'] ?? '${data['first_name'] ?? 'Unknown'} ${data['last_name'] ?? 'Patient'}';
+                  final doctor = data['doctor_name'] ?? data['doctor'] ?? 'Unknown Doctor';
+                  
+                  return Column(
+                    children: [
+                      Text(
+                        name,
+                        textAlign: TextAlign.center,
+                        style: DesignTokens.headingStyle,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Dr. $doctor',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 32),
-              
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.borderRadiusMedium)),
-                child: const Padding(
-                  padding: EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('SBAR Summary', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      SizedBox(height: 8),
-                      Text('S: Improving active flexion in digits 2 & 3.'),
-                      Text('B: Ischemic stroke, starting baseline ROM was 20%.'),
-                      Text('A: Reached 60% normalized ROM; fatigue after 15 min.'),
-                      Text('R: Increase session duration to 20 mins.'),
-                    ],
-                  ),
-                ),
+              const Center(
+                child: Text('No summary data available.', style: DesignTokens.bodyStyle),
               ),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.share),
-                label: const Text('Export SBAR Report'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                ),
-              ),
-              const SizedBox(height: 80),
             ],
           ),
         ),
