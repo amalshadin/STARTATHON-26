@@ -11,4 +11,5 @@ void setup() {
 void loop() {
   MPUData data = mpu.read();
   mpu.printData(data);
+  delay(100);  // Read 10 times a second
 }

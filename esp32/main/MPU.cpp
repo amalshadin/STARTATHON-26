@@ -51,7 +51,6 @@ MPUData MPU6050::read() {
   data.gyroY = (Wire.read() << 8 | Wire.read());
   data.gyroZ = (Wire.read() << 8 | Wire.read());
 
-  delay(100);  // Read 10 times a second
   return data;
 }
 
