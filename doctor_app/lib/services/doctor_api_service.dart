@@ -13,15 +13,15 @@ class DoctorApiService {
   }
 
   Map<String, String> get _headers => {
-        'Content-Type': 'application/json',
-        if (_authToken != null) 'Authorization': 'Bearer $_authToken',
-      };
+    'Content-Type': 'application/json',
+    if (_authToken != null) 'Authorization': 'Bearer $_authToken',
+  };
 
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
       final response = await http
           .post(
-            Uri.parse('$baseUrl/doctor/login'),
+            Uri.parse('$baseUrl/auth/login'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({'email': email, 'password': password}),
           )
@@ -60,10 +60,7 @@ class DoctorApiService {
   Future<DoctorProfile> getDoctorMe() async {
     try {
       final response = await http
-          .get(
-            Uri.parse('$baseUrl/doctors/me'),
-            headers: _headers,
-          )
+          .get(Uri.parse('$baseUrl/doctors/me'), headers: _headers)
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
@@ -79,10 +76,7 @@ class DoctorApiService {
   Future<List<PatientRecord>> fetchPatients() async {
     try {
       final response = await http
-          .get(
-            Uri.parse('$baseUrl/patients'),
-            headers: _headers,
-          )
+          .get(Uri.parse('$baseUrl/patients'), headers: _headers)
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {

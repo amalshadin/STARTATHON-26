@@ -14,6 +14,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _hospitalController = TextEditingController();
+  final _specializationController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
@@ -23,6 +24,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       'full_name': _nameController.text,
       'email': _emailController.text,
       'hospital_name': _hospitalController.text,
+      'specialization': _specializationController.text,
       'password': _passwordController.text,
     };
     
@@ -90,6 +92,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   'Hospital Affiliation',
                   _hospitalController,
                   Icons.local_hospital_outlined,
+                ),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  'Specialization',
+                  _specializationController,
+                  Icons.medical_services_outlined,
                 ),
                 const SizedBox(height: 16),
                 _buildTextField(

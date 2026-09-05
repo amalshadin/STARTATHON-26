@@ -47,7 +47,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          doctor?.fullName ?? 'Dr. Unknown',
+                          doctor?.fullName?.isNotEmpty == true ? doctor!.fullName : 'Unknown Doctor',
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 24,
@@ -58,7 +58,7 @@ class _DoctorDashboardScreenState extends State<DoctorDashboardScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          '${doctor?.specialization ?? 'Neurology'} • ${doctor?.hospitalName ?? 'City Hospital'}',
+                          '${doctor?.specialization?.isNotEmpty == true ? doctor!.specialization : 'Specialization'} • ${doctor?.hospitalName?.isNotEmpty == true ? doctor!.hospitalName : 'Hospital'}',
                           style: const TextStyle(
                             color: Colors.white54,
                             fontSize: 14,

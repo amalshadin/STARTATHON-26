@@ -47,17 +47,17 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        doctor?.fullName ?? 'Unknown Doctor',
+                        doctor?.fullName?.isNotEmpty == true ? doctor!.fullName : 'Unknown Doctor',
                         style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'License No: ${doctor?.licenseNumber ?? 'N/A'}',
+                        'License No: ${doctor?.licenseNumber?.isNotEmpty == true ? doctor!.licenseNumber : 'N/A'}',
                         style: const TextStyle(color: Colors.white54, fontSize: 14),
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${doctor?.specialization ?? 'Specialization'} • ${doctor?.hospitalName ?? 'Hospital'}',
+                        '${doctor?.specialization?.isNotEmpty == true ? doctor!.specialization : 'Specialization'} • ${doctor?.hospitalName?.isNotEmpty == true ? doctor!.hospitalName : 'Hospital'}',
                         style: const TextStyle(color: Colors.white54, fontSize: 14),
                       ),
                     ],

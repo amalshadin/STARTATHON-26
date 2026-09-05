@@ -57,19 +57,10 @@ class DoctorPortalProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _apiService.registerDoctor(data);
-      // If endpoint returns token, we can auto-login, otherwise they may need to login manually.
-      // Assuming it returns standard auth response or just the profile. We'll try to get token.
-      if (response.containsKey('access_token')) {
-        authToken = response['access_token'];
-        _apiService.setToken(authToken!);
-        if (response.containsKey('doctor_profile')) {
-          currentDoctor = DoctorProfile.fromJson(response['doctor_profile']);
-        } else {
-          currentDoctor = await _apiService.getDoctorMe();
-        }
-      }
-      return true;
+      await _apiService.registerDoctor(data);
+      // Auto-login after registration to fetch token and profile
+      await login(data['email'], data['password']);
+      return isAuthenticated;
     } catch (e) {
       errorMessage = e.toString();
       return false;

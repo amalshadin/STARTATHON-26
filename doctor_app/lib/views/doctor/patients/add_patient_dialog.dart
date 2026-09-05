@@ -21,6 +21,7 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
   bool _isLoading = false;
   bool _isSubmitted = false;
   String? _generatedPin;
+  String? _patientId;
 
   Future<void> _submit() async {
     if (_nameController.text.isEmpty) return;
@@ -43,6 +44,13 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
       if (response != null) {
         setState(() {
           _generatedPin = response['pin']?.toString() ?? 'N/A';
+          
+          if (response['patient'] != null && response['patient']['id'] != null) {
+            _patientId = response['patient']['id'].toString();
+          } else {
+            _patientId = 'N/A';
+          }
+          
           _isSubmitted = true;
         });
       } else {
@@ -180,24 +188,35 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
         const SizedBox(height: 24),
         Container(
           padding: const EdgeInsets.all(16),
+          width: double.infinity,
           decoration: BoxDecoration(
             color: const Color(0xFF0A0F1D),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Text('Generated Patient PIN / ID:', style: TextStyle(color: Colors.white54)),
-              const SizedBox(height: 8),
-              Text(
+              const Text('Patient ID:', style: TextStyle(color: Colors.white54, fontSize: 14)),
+              const SizedBox(height: 4),
+              SelectableText(
+                _patientId ?? 'N/A',
+                style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              const Text('Generated PIN:', style: TextStyle(color: Colors.white54, fontSize: 14)),
+              const SizedBox(height: 4),
+              SelectableText(
                 _generatedPin ?? 'N/A',
-                style: const TextStyle(color: Color(0xFF00E5FF), fontSize: 28, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: Color(0xFF00E5FF), fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 2),
+                textAlign: TextAlign.center,
               ),
             ],
           ),
         ),
         const SizedBox(height: 16),
         const Text(
-          'Give this PIN to your patient to log into their home glove app.',
+          'Give this ID and PIN to your patient to log into their home glove app.',
           textAlign: TextAlign.center,
           style: TextStyle(color: Colors.white70),
         ),
