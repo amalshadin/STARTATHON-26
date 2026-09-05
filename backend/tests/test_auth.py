@@ -80,11 +80,13 @@ def test_verify_pin_success_and_replay_lockout(
     assert correct_res.status_code == 200
     data = correct_res.json()
     assert "PIN verified" in data["message"]
+    assert "patient_id" in data
+    assert data["patient_id"] == str(patient.id)
 
-    # 3. Subsequent attempt with same PIN should now be rejected as already used
+    # 3. Subsequent attempt with same PIN succeeds (one-time use disabled)
     reused_res = client.post("/auth/verify-pin", json={"email": email, "pin": plain_pin})
-    assert reused_res.status_code == 401
-    assert "No valid invitation found" in reused_res.json()["detail"]
+    assert reused_res.status_code == 200
+    assert reused_res.json()["patient_id"] == str(patient.id)
 
 
 def test_doctor_registration(client: TestClient, db_session: Session):

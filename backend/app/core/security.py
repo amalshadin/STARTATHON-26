@@ -28,6 +28,7 @@ import uuid
 
 import httpx
 import jwt
+from jwt import PyJWKClient
 from jwt.exceptions import PyJWTError
 import bcrypt
 
@@ -35,6 +36,20 @@ from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
+
+_jwks_client: Optional[PyJWKClient] = None
+
+
+def get_jwks_client() -> Optional[PyJWKClient]:
+    """Returns singleton PyJWKClient pointing to Supabase JWKS endpoint."""
+    global _jwks_client
+    if _jwks_client is None and settings.jwks_url:
+        try:
+            _jwks_client = PyJWKClient(settings.jwks_url, cache_keys=True, max_cached_keys=16)
+        except Exception as e:
+            logger.warning("Failed to initialize JWKS client for %s: %s", settings.jwks_url, e)
+    return _jwks_client
+
 
 # ── Password / PIN hashing ────────────────────────────────────────────────────
 
@@ -110,32 +125,81 @@ def verify_supabase_token(token: str) -> dict:
     """
     Verify a Supabase-issued or backend-issued JWT and return its decoded payload.
 
-    Supabase JWTs are HS256-signed with the project JWT secret.
-    The 'aud' (audience) claim is always 'authenticated' for logged-in users.
-    The 'sub' claim is the Supabase auth user UUID (= Profile.id in our DB).
+    Supports:
+      1. Asymmetric keys (ES256, RS256, etc.) fetched dynamically via Supabase JWKS endpoint.
+      2. Symmetric HS256 tokens signed with SUPABASE_JWT_SECRET or DEFAULT_JWT_SECRET.
+      3. Development fallback for local environments if JWKS is temporarily unreachable.
 
     Raises:
         jwt.PyJWTError: if the token is invalid, expired, or tampered with.
     """
-    if settings.supabase_jwt_secret:
-        return jwt.decode(
-            token,
-            settings.supabase_jwt_secret,
-            algorithms=["HS256"],
-            audience="authenticated",
-        )
+    if not token or not isinstance(token, str) or token.count(".") < 2:
+        raise PyJWTError("Invalid token format: Not enough segments")
 
-    # If SUPABASE_JWT_SECRET not set, try DEFAULT_JWT_SECRET first
+    # 1. Parse token header to inspect signing algorithm and key ID
     try:
-        return jwt.decode(
-            token,
-            DEFAULT_JWT_SECRET,
-            algorithms=["HS256"],
-            audience="authenticated",
+        header = jwt.get_unverified_header(token)
+        alg = header.get("alg", "HS256")
+    except Exception as e:
+        raise PyJWTError(f"Malformed JWT header: {e}") from e
+
+    # 2. Asymmetric token verification (modern Supabase default: ES256 / RS256)
+    if alg in ("ES256", "ES384", "ES512", "RS256", "RS384", "RS512", "EdDSA"):
+        jwks = get_jwks_client()
+        if jwks:
+            try:
+                signing_key = jwks.get_signing_key_from_jwt(token)
+                return jwt.decode(
+                    token,
+                    signing_key.key,
+                    algorithms=[signing_key.algorithm_name, alg],
+                    audience="authenticated",
+                )
+            except Exception as e:
+                logger.warning("JWKS verification error for %s token: %s", alg, e)
+                if not settings.is_development:
+                    raise PyJWTError(f"Token verification failed: {e}") from e
+
+    # 3. Symmetric token verification (HS256)
+    if alg == "HS256":
+        # Check SUPABASE_JWT_SECRET if configured
+        if settings.supabase_jwt_secret:
+            try:
+                return jwt.decode(
+                    token,
+                    settings.supabase_jwt_secret,
+                    algorithms=["HS256"],
+                    audience="authenticated",
+                )
+            except PyJWTError:
+                pass
+
+        # Check backend internal secret
+        try:
+            return jwt.decode(
+                token,
+                DEFAULT_JWT_SECRET,
+                algorithms=["HS256"],
+                audience="authenticated",
+            )
+        except PyJWTError:
+            pass
+
+    # 4. Development mode fallback (decodes payload without signature if keys unavailable)
+    if settings.is_development:
+        logger.warning(
+            "JWT verification signature check bypassed in development mode for algorithm '%s'.",
+            alg,
         )
-    except PyJWTError:
-        # Fallback decode without signature verification for dev convenience
-        return jwt.decode(token, options={"verify_signature": False})
+        try:
+            return jwt.decode(
+                token,
+                options={"verify_signature": False, "verify_aud": False},
+            )
+        except Exception as e:
+            raise PyJWTError(f"Could not decode token payload: {e}") from e
+
+    raise PyJWTError(f"Unsupported or unverifiable JWT algorithm: {alg}")
 
 
 # ── Supabase Admin API ────────────────────────────────────────────────────────
@@ -143,17 +207,18 @@ def verify_supabase_token(token: str) -> dict:
 def _admin_headers() -> dict:
     """
     Authorization headers for Supabase Auth Admin API calls.
-    Requires SUPABASE_SERVICE_ROLE_KEY to be set in .env.
+    Supports modern SUPABASE_SECRET_KEY or legacy SUPABASE_SERVICE_ROLE_KEY.
     """
-    if not settings.supabase_service_role_key:
+    key = settings.api_secret_key
+    if not key:
         raise RuntimeError(
-            "SUPABASE_SERVICE_ROLE_KEY is not configured. "
+            "Neither SUPABASE_SECRET_KEY nor SUPABASE_SERVICE_ROLE_KEY is configured. "
             "Add it to .env to enable patient account creation. "
             "Get it from: Supabase Dashboard → Project Settings → API"
         )
     return {
-        "Authorization": f"Bearer {settings.supabase_service_role_key}",
-        "apikey": settings.supabase_service_role_key,
+        "Authorization": f"Bearer {key}",
+        "apikey": key,
         "Content-Type": "application/json",
     }
 
@@ -182,6 +247,16 @@ def create_supabase_user(email: str, temp_password: str) -> dict:
         return response.json()
     except httpx.HTTPStatusError as e:
         error_body = e.response.text
+        if e.response.status_code == 422 and ("already" in error_body.lower() or "exists" in error_body.lower()):
+            logger.info("User %s already exists in Supabase Auth, retrieving existing record...", email)
+            try:
+                list_res = httpx.get(url, headers=_admin_headers(), timeout=10.0)
+                if list_res.is_success:
+                    for u in list_res.json().get("users", []):
+                        if u.get("email", "").lower() == email.lower():
+                            return u
+            except Exception:
+                pass
         logger.error("Supabase create_user failed: %s — %s", e.response.status_code, error_body)
         raise RuntimeError(f"Failed to create Supabase user: {error_body}") from e
     except httpx.RequestError as e:

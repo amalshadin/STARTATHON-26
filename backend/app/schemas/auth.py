@@ -1,5 +1,6 @@
 """Auth-related Pydantic schemas (PIN onboarding)."""
 from __future__ import annotations
+import uuid
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field, model_validator
 from app.schemas.doctor import DoctorResponse
@@ -15,14 +16,11 @@ class PinVerifyRequest(BaseModel):
 class PinVerifyResponse(BaseModel):
     """
     Returned after a successful PIN verification.
-
-    magic_link: A Supabase-generated single-use URL. Flutter should open this
-    in a browser/WebView. It signs the patient in and redirects to the app
-    where they can set a permanent password.
-
-    If SUPABASE_SERVICE_ROLE_KEY is not configured (dev mode), magic_link
-    will be null and a message will explain what to do.
+    Includes patient_id and a Bearer access_token for the patient session.
     """
+    patient_id: Optional[uuid.UUID] = None
+    access_token: Optional[str] = None
+    token_type: str = "bearer"
     magic_link: str | None = None
     message: str
 
@@ -50,3 +48,4 @@ class LoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     doctor: DoctorResponse
+    doctor_profile: Optional[DoctorResponse] = None

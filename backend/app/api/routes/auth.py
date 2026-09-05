@@ -129,7 +129,19 @@ def verify_patient_pin(
             "no magic link generated. Set your password via Supabase dashboard."
         )
 
-    return PinVerifyResponse(magic_link=magic_link, message=message)
+    token = create_access_token(
+        user_id=profile.id,
+        email=profile.email,
+        role="patient",
+    )
+
+    return PinVerifyResponse(
+        patient_id=profile.id,
+        access_token=token,
+        token_type="bearer",
+        magic_link=magic_link,
+        message=message,
+    )
 
 
 @router.post(
@@ -317,18 +329,21 @@ def login(
         role="doctor",
     )
 
+    doc_resp = DoctorResponse(
+        id=doctor.id,
+        full_name=doctor.full_name or profile.full_name,
+        email=profile.email,
+        phone=profile.phone,
+        specialization=doctor.specialization,
+        license_number=doctor.license_number,
+        institution=doctor.institution,
+        hospital_name=doctor.hospital_name,
+        created_at=doctor.created_at,
+    )
+
     return LoginResponse(
         access_token=token,
         token_type="bearer",
-        doctor=DoctorResponse(
-            id=doctor.id,
-            full_name=doctor.full_name or profile.full_name,
-            email=profile.email,
-            phone=profile.phone,
-            specialization=doctor.specialization,
-            license_number=doctor.license_number,
-            institution=doctor.institution,
-            hospital_name=doctor.hospital_name,
-            created_at=doctor.created_at,
-        ),
+        doctor=doc_resp,
+        doctor_profile=doc_resp,
     )
