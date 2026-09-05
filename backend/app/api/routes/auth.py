@@ -22,11 +22,17 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_auth_id, get_optional_auth_id, get_current_user
-from app.core.security import generate_supabase_magic_link, verify_pin
+from app.core.security import (
+    generate_supabase_magic_link,
+    verify_pin,
+    hash_password,
+    verify_password,
+    create_access_token,
+)
 from app.core.config import get_settings
 from app.db.database import get_db
 from app.db.models import Doctor, Patient, PatientInvitation, Profile, UserRole
-from app.schemas.auth import PinVerifyRequest, PinVerifyResponse
+from app.schemas.auth import PinVerifyRequest, PinVerifyResponse, LoginRequest, LoginResponse
 from app.schemas.doctor import DoctorCreate, DoctorResponse
 
 logger = logging.getLogger(__name__)
@@ -178,6 +184,9 @@ def register_doctor(
         if existing_by_email.role == UserRole.doctor:
             doctor = db.get(Doctor, existing_by_email.id)
             if doctor:
+                if body.password and not existing_by_email.hashed_password:
+                    existing_by_email.hashed_password = hash_password(body.password)
+                    db.commit()
                 response.status_code = status.HTTP_200_OK
                 response.headers["X-Idempotent-Replayed"] = "true"
                 return DoctorResponse(
@@ -206,6 +215,7 @@ def register_doctor(
         role=UserRole.doctor,
         full_name=body.full_name,
         phone=body.phone,
+        hashed_password=hash_password(body.password) if body.password else None,
     )
     db.add(profile)
     db.flush()
@@ -232,4 +242,93 @@ def register_doctor(
         institution=doctor.institution,
         hospital_name=doctor.hospital_name,
         created_at=doctor.created_at,
+    )
+
+
+@router.post(
+    "/login",
+    response_model=LoginResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Doctor login",
+    description="Authenticates a doctor using their email (or username / license number) and password. Returns a Bearer JWT access token.",
+)
+def login(
+    body: LoginRequest,
+    db: Session = Depends(get_db),
+) -> LoginResponse:
+    """
+    Doctor login endpoint.
+    Accepts email or username (can be doctor's license number DOC-XXXXXX) and password.
+    Returns access token and doctor profile details.
+    """
+    identifier = (body.email or body.username or "").strip()
+    if not identifier:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Either email or username must be provided",
+        )
+
+    # 1. Lookup doctor and profile
+    profile: Optional[Profile] = None
+    doctor: Optional[Doctor] = None
+
+    if "@" in identifier:
+        profile = db.execute(
+            select(Profile).where(Profile.email.ilike(identifier))
+        ).scalar_one_or_none()
+        if profile:
+            doctor = db.get(Doctor, profile.id)
+    else:
+        # Check by license_number first
+        doctor = db.execute(
+            select(Doctor).where(Doctor.license_number == identifier)
+        ).scalar_one_or_none()
+        if doctor:
+            profile = db.get(Profile, doctor.id)
+        else:
+            profile = db.execute(
+                select(Profile).where(Profile.email.ilike(identifier))
+            ).scalar_one_or_none()
+            if profile:
+                doctor = db.get(Doctor, profile.id)
+
+    if not profile or not doctor or profile.role != UserRole.doctor:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email/username or password",
+        )
+
+    if not profile.hashed_password:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="No password configured for this account. Please set a password or contact support.",
+        )
+
+    if not verify_password(body.password, profile.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email/username or password",
+        )
+
+    # 2. Generate standard Bearer JWT token
+    token = create_access_token(
+        user_id=profile.id,
+        email=profile.email,
+        role="doctor",
+    )
+
+    return LoginResponse(
+        access_token=token,
+        token_type="bearer",
+        doctor=DoctorResponse(
+            id=doctor.id,
+            full_name=doctor.full_name or profile.full_name,
+            email=profile.email,
+            phone=profile.phone,
+            specialization=doctor.specialization,
+            license_number=doctor.license_number,
+            institution=doctor.institution,
+            hospital_name=doctor.hospital_name,
+            created_at=doctor.created_at,
+        ),
     )
