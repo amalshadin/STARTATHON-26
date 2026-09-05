@@ -15,8 +15,8 @@ class BleService {
   StreamSubscription<BluetoothConnectionState>? _connectionStateSubscription;
   StreamSubscription<List<int>>? _characteristicSubscription;
 
-  final _sensorStreamController = StreamController<String>.broadcast();
-  Stream<String> get sensorStream => _sensorStreamController.stream;
+  final _sensorStreamController = StreamController<List<int>>.broadcast();
+  Stream<List<int>> get sensorStream => _sensorStreamController.stream;
 
   final _connectionStateController = StreamController<BluetoothConnectionState>.broadcast();
   Stream<BluetoothConnectionState> get connectionStateStream => _connectionStateController.stream;
@@ -117,20 +117,9 @@ class BleService {
 
       if (targetCharacteristic != null) {
         await targetCharacteristic.setNotifyValue(true);
-        String _buffer = '';
         _characteristicSubscription = targetCharacteristic.lastValueStream.listen((value) {
           if (value.isNotEmpty) {
-            final decodedString = utf8.decode(value, allowMalformed: true);
-            _buffer += decodedString;
-            if (_buffer.contains('\n')) {
-              final lines = _buffer.split('\n');
-              for (int i = 0; i < lines.length - 1; i++) {
-                if (lines[i].trim().isNotEmpty) {
-                  _sensorStreamController.add(lines[i].trim());
-                }
-              }
-              _buffer = lines.last;
-            }
+            _sensorStreamController.add(value);
           }
         });
       } else {

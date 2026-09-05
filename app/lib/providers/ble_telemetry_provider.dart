@@ -100,26 +100,40 @@ class BleTelemetryProvider extends ChangeNotifier {
       notifyListeners();
     });
 
-    _sensorSub = BleService().sensorStream.listen((rawJson) {
-      processBleJson(rawJson);
+    _sensorSub = BleService().sensorStream.listen((bytes) {
+      processBleBytes(bytes);
     });
   }
 
-  void processBleJson(String rawJson) {
-    try {
-      final Map<String, dynamic> data = jsonDecode(rawJson);
-      
-      List<double> flexAngles = [0.0, 0.0, 0.0, 0.0, 0.0];
-      if (data.containsKey('f') && data['f'] is List) {
-        final List<dynamic> fList = data['f'];
-        for (int i = 0; i < fList.length && i < 3; i++) {
-          flexAngles[i] = (fList[i] as num).toDouble();
-        }
-      }
+  void processBleBytes(List<int> bytes) {
+    if (bytes.length < 20) {
+      // Incomplete packet
+      return;
+    }
 
-      double pitch = (data['x'] ?? data['pitch'] ?? 0.0).toDouble();
-      double roll = (data['y'] ?? data['roll'] ?? 0.0).toDouble();
-      double yaw = (data['z'] ?? data['yaw'] ?? 0.0).toDouble();
+    try {
+      final byteData = ByteData.sublistView(Uint8List.fromList(bytes));
+      
+      // ESP32 uses Little Endian by default
+      // FlexData (3x uint16_t = 6 bytes)
+      int flex1 = byteData.getUint16(0, Endian.little);
+      int flex2 = byteData.getUint16(2, Endian.little);
+      int flex3 = byteData.getUint16(4, Endian.little);
+      
+      // MpuData (7x int16_t = 14 bytes)
+      int accX = byteData.getInt16(6, Endian.little);
+      int accY = byteData.getInt16(8, Endian.little);
+      // int accZ = byteData.getInt16(10, Endian.little);
+      // int tempRaw = byteData.getInt16(12, Endian.little);
+      // int gyroX = byteData.getInt16(14, Endian.little);
+      // int gyroY = byteData.getInt16(16, Endian.little);
+      int gyroZ = byteData.getInt16(18, Endian.little);
+
+      List<double> flexAngles = [flex1.toDouble(), flex2.toDouble(), flex3.toDouble(), 0.0, 0.0];
+
+      double pitch = accX.toDouble();
+      double roll = accY.toDouble();
+      double yaw = gyroZ.toDouble();
 
       _latestPacket = SensorPacket(
         timestamp: DateTime.now(),
@@ -132,10 +146,11 @@ class BleTelemetryProvider extends ChangeNotifier {
       
       // Enforce switching off the mock timer once live data flows
       _mockTimer?.cancel();
-      
+      _lastError = null; // Clear any previous errors on success
       notifyListeners();
     } catch (e) {
-      // Silently discard malformed JSON frames
+      _lastError = 'Binary parse error. Check struct packing.';
+      notifyListeners();
     }
   }
 
