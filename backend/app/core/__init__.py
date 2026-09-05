@@ -1,0 +1,1 @@
+# HapticSync core package
