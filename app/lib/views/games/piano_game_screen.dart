@@ -193,6 +193,7 @@ class _PianoGameScreenState extends State<PianoGameScreen> with SingleTickerProv
 
   void _showSummary() {
     _gameLoop.stop();
+    BuildContext parentContext = context;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -212,8 +213,8 @@ class _PianoGameScreenState extends State<PianoGameScreen> with SingleTickerProv
         actions: [
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pop(); // Go back to arena
+              Navigator.pop(context);
+              Navigator.pop(parentContext); // Go back to arena
             },
             child: const Text('End Game', style: TextStyle(color: DesignTokens.secondaryColor)),
           ),

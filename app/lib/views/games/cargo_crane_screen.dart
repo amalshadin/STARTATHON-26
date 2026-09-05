@@ -70,6 +70,12 @@ class _CargoCraneScreenState extends State<CargoCraneScreen> with SingleTickerPr
     
     _gameLoop.forward();
   }
+
+  @override
+  void dispose() {
+    _gameLoop.dispose();
+    super.dispose();
+  }
   
   void _spawnCrates() {
     _crates.clear();
@@ -138,6 +144,7 @@ class _CargoCraneScreenState extends State<CargoCraneScreen> with SingleTickerPr
 
   void _showEndOfShiftModal() {
     _gameLoop.stop();
+    BuildContext parentContext = context;
     
     final int avgTransit = _cratesPlaced > 0 ? (_totalTransitTime / _cratesPlaced).round() : 0;
     final int avgHoldSlip = _slipCount > 0 ? (_totalHoldBeforeSlip / _slipCount).round() : 0;
@@ -176,7 +183,7 @@ class _CargoCraneScreenState extends State<CargoCraneScreen> with SingleTickerPr
           TextButton(
              onPressed: () {
                Navigator.pop(context);
-               Navigator.pop(context); // Return to Arena
+               Navigator.pop(parentContext); // Return to Arena
              }, 
              child: const Text('Return to Arena Hub', style: TextStyle(color: Colors.grey))
           ),
@@ -337,13 +344,26 @@ class _CargoCraneScreenState extends State<CargoCraneScreen> with SingleTickerPr
         ],
       ),
       body: GestureDetector(
-        onPanUpdate: (details) {
-          // Debug touch-drag for emulator
+        onPanDown: (details) {
           setState(() {
             _cranePosition = details.localPosition;
+            _debugPinch = true;
           });
         },
-        onTapDown: (_) => setState(() => _debugPinch = true),
+        onPanUpdate: (details) {
+          setState(() {
+            _cranePosition = details.localPosition;
+            _debugPinch = true;
+          });
+        },
+        onPanEnd: (_) => setState(() => _debugPinch = false),
+        onPanCancel: () => setState(() => _debugPinch = false),
+        onTapDown: (details) {
+          setState(() {
+            _cranePosition = details.localPosition;
+            _debugPinch = true;
+          });
+        },
         onTapUp: (_) => setState(() => _debugPinch = false),
         onTapCancel: () => setState(() => _debugPinch = false),
         child: Stack(

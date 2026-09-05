@@ -6,6 +6,7 @@ import 'dart:math' as math;
 
 import 'piano_game_screen.dart';
 import 'cargo_crane_screen.dart';
+import 'space_game_screen.dart';
 
 class GameArenaScreen extends StatelessWidget {
   const GameArenaScreen({super.key});
@@ -17,7 +18,7 @@ class GameArenaScreen extends StatelessWidget {
         title: const Text('Game Arena', style: DesignTokens.headingStyle),
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: DesignTokens.defaultPadding,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -39,8 +40,16 @@ class GameArenaScreen extends StatelessWidget {
                 Icons.pan_tool, 
                 () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CargoCraneScreen())),
               ),
+              const SizedBox(height: 16),
+              _buildGameCard(
+                context, 
+                'AstroShield', 
+                'Multi-Sensor Reflex Training', 
+                Icons.rocket_launch, 
+                () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SpaceGameScreen())),
+              ),
               
-              const Spacer(),
+              const SizedBox(height: 40),
               const Text('Live Glove Telemetry (Debug)', style: TextStyle(fontWeight: FontWeight.bold)),
               Consumer<BleTelemetryProvider>(
                 builder: (context, ble, child) {
