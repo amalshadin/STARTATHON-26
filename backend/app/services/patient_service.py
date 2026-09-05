@@ -63,30 +63,63 @@ def create_patient(
         ValueError: if email is already registered.
         RuntimeError: if Supabase user creation fails.
     """
-    # 1. Check email uniqueness
+    # 1. Check email uniqueness / existing patient
     existing = db.execute(
         select(Profile).where(Profile.email == data.email)
     ).scalar_one_or_none()
+
     if existing:
-        raise ValueError(f"Email '{data.email}' is already registered")
+        if existing.role == UserRole.doctor:
+            raise ValueError(f"Email '{data.email}' is already registered as a doctor account.")
+
+        # Existing patient: connect to this doctor and issue new PIN
+        patient = db.get(Patient, existing.id)
+        if patient:
+            stmt = select(DoctorPatient).where(
+                DoctorPatient.doctor_id == doctor.id,
+                DoctorPatient.patient_id == patient.id,
+            )
+            rel = db.execute(stmt).scalar_one_or_none()
+            if rel:
+                rel.status = RelationshipStatus.active
+            else:
+                rel = DoctorPatient(
+                    doctor_id=doctor.id,
+                    patient_id=patient.id,
+                    status=RelationshipStatus.active,
+                )
+                db.add(rel)
+
+            plain_pin = generate_pin(6)
+            pin_expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.pin_expiry_hours)
+            invitation = PatientInvitation(
+                patient_id=patient.id,
+                pin_hash=hash_pin(plain_pin),
+                expires_at=pin_expires_at,
+                is_used=False,
+                attempt_count=0,
+                created_by=doctor.id,
+            )
+            db.add(invitation)
+            db.commit()
+            db.refresh(patient)
+            return patient, plain_pin, pin_expires_at
 
     # 2. Determine the patient's Supabase auth UUID
     patient_auth_id = uuid.uuid4()  # default: we generate it
 
-    if settings.supabase_service_role_key:
+    if settings.api_secret_key:
         # Create Supabase Auth account with a random strong temp password
         temp_password = secrets.token_urlsafe(32)
         try:
             supabase_user = create_supabase_user(data.email, temp_password)
             patient_auth_id = uuid.UUID(supabase_user["id"])
             logger.info("Created Supabase user %s for %s", patient_auth_id, data.email)
-        except RuntimeError as e:
-            logger.error("Supabase user creation failed: %s", e)
-            raise
+        except Exception as e:
+            logger.warning("Supabase user creation failed: %s — proceeding with DB creation", e)
     else:
         logger.warning(
-            "SUPABASE_SERVICE_ROLE_KEY not set — patient %s created in DB only. "
-            "Create the Supabase Auth account manually using the Supabase dashboard.",
+            "Neither SUPABASE_SECRET_KEY nor SUPABASE_SERVICE_ROLE_KEY set — patient %s created in DB only.",
             data.email,
         )
 

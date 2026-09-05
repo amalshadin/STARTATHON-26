@@ -18,7 +18,8 @@ email-validator==2.2.0
 python-dotenv==1.2.3
 
 # ── Authentication & Security ─────────────────────────────────────────────────
-PyJWT==2.9.0                     # Supabase JWT verification (HS256)
+PyJWT==2.9.0                     # Supabase JWT verification
+cryptography>=42.0.0             # Asymmetric signature verification (ES256/RS256 via JWKS)
 passlib[bcrypt]==1.7.4           # PIN hashing
 
 # ── HTTP Client (Supabase Admin API) ──────────────────────────────────────────

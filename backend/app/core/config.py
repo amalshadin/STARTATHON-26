@@ -14,12 +14,14 @@ from functools import lru_cache
 from typing import Optional
 from urllib.parse import quote_plus
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     # ── Database ──────────────────────────────────────────────────────────────
-    # Match the lowercase keys already in the project's .env file.
+    # Allows direct DATABASE_URL=... in .env or separate components
+    database_url_env: Optional[str] = Field(None, validation_alias="database_url")
     user: str = "postgres"
     password: str = ""
     host: str = "localhost"
@@ -30,9 +32,11 @@ class Settings(BaseSettings):
     # Dashboard → Project Settings → API
     supabase_url: str = ""
     supabase_anon_key: str = ""
-    # ⚠️  Server-side ONLY. Never expose to Flutter. Never commit to Git.
+    # Modern secret key format: SUPABASE_SECRET_KEY=sb_secret_...
+    supabase_secret_key: Optional[str] = None
+    # Legacy service-role key: SUPABASE_SERVICE_ROLE_KEY=...
     supabase_service_role_key: Optional[str] = None
-    # Dashboard → Project Settings → API → JWT Secret (used to verify patient JWTs)
+    # Optional shared secret if project uses legacy HS256 symmetric signing
     supabase_jwt_secret: str = ""
 
     # ── Application ───────────────────────────────────────────────────────────
@@ -47,12 +51,37 @@ class Settings(BaseSettings):
     # ── Computed Properties ───────────────────────────────────────────────────
 
     @property
+    def effective_supabase_url(self) -> str:
+        """Returns configured supabase_url or infers from project ref in user setting."""
+        if self.supabase_url:
+            return self.supabase_url.rstrip("/")
+        # Infer from pooler username (e.g. postgres.qjgyjlkrxxlcbobcjmdd)
+        if "." in self.user:
+            ref = self.user.split(".")[1].strip()
+            if ref:
+                return f"https://{ref}.supabase.co"
+        return ""
+
+    @property
+    def jwks_url(self) -> str:
+        """Supabase public JWKS endpoint for asymmetric JWT verification."""
+        base = self.effective_supabase_url
+        return f"{base}/auth/v1/.well-known/jwks.json" if base else ""
+
+    @property
+    def api_secret_key(self) -> Optional[str]:
+        """Returns modern SUPABASE_SECRET_KEY or legacy SUPABASE_SERVICE_ROLE_KEY."""
+        return self.supabase_secret_key or self.supabase_service_role_key
+
+    @property
     def database_url(self) -> str:
         """
         SQLAlchemy connection string for Supabase PostgreSQL.
-        Password is URL-encoded so special characters (^, @, etc.) don't break parsing.
-        sslmode=require is mandatory for Supabase.
+        Uses DATABASE_URL if present, otherwise constructs from components.
         """
+        if self.database_url_env:
+            return self.database_url_env
+
         encoded_pw = quote_plus(self.password)
         return (
             f"postgresql+psycopg2://{self.user}:{encoded_pw}"
@@ -72,7 +101,8 @@ class Settings(BaseSettings):
     @property
     def supabase_admin_api_url(self) -> str:
         """Base URL for Supabase Auth Admin API calls."""
-        return f"{self.supabase_url}/auth/v1/admin"
+        base = self.effective_supabase_url
+        return f"{base}/auth/v1/admin"
 
     model_config = SettingsConfigDict(
         env_file=".env",
