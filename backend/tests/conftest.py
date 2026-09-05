@@ -76,6 +76,7 @@ def mock_doctor(db_session: Session) -> dict:
 
     doctor = Doctor(
         id=doctor_id,
+        full_name=profile.full_name,
         specialization="Neurologist",
         license_number="MED-12345",
         hospital_name="Apex Rehab",

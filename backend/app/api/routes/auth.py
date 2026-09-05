@@ -210,6 +210,7 @@ def register_doctor(
 
     doctor = Doctor(
         id=final_id,
+        full_name=body.full_name,
         specialization=body.specialization,
         license_number=body.license_number,
         institution=body.institution,

@@ -58,6 +58,7 @@ def upgrade() -> None:
     op.create_index(op.f('ix_profiles_email'), 'profiles', ['email'], unique=True)
     op.create_table('doctors',
     sa.Column('id', sa.UUID(), nullable=False),
+    sa.Column('full_name', sa.String(length=255), nullable=False),
     sa.Column('specialization', sa.String(length=255), nullable=True),
     sa.Column('license_number', sa.String(length=100), nullable=True),
     sa.Column('institution', sa.String(length=255), nullable=True),

@@ -102,6 +102,7 @@ class Doctor(Base):
         ForeignKey("profiles.id", ondelete="CASCADE"),
         primary_key=True,
     )
+    full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     specialization: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     license_number: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     institution: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
