@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/doctor_state_provider.dart';
-import 'views/doctor/doctor_root_scaffold.dart';
+import 'views/auth/login_screen.dart';
 
 void main() {
   runApp(
@@ -34,7 +34,7 @@ class HapticSyncDoctorApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFF0A0F1D),
         useMaterial3: true,
       ),
-      home: const DoctorRootScaffold(),
+      home: const LoginScreen(),
     );
   }
 }

@@ -62,12 +62,13 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
   }
 
   Widget _buildForm() {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Add New Patient',
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Add New Patient',
           style: TextStyle(
             color: Colors.white,
             fontSize: 20,
@@ -134,7 +135,7 @@ class _AddPatientDialogState extends State<AddPatientDialog> {
           ),
         ),
       ],
-    );
+    ));
   }
 
   Widget _buildTextField(String label, TextEditingController controller, {bool isNumber = false}) {

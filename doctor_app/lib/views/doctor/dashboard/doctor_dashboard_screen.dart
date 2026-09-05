@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/doctor_state_provider.dart';
 import '../../../models/patient.dart';
-import '../patients/add_patient_dialog.dart';
 import '../patients/patient_detail_screen.dart';
 
 class DoctorDashboardScreen extends StatelessWidget {
@@ -27,44 +26,31 @@ class DoctorDashboardScreen extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        'Dr. Sarah Jenkins',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text(
+                          'Dr. Sarah Jenkins',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Neurology Dept • City Hospital',
-                        style: TextStyle(
-                          color: Colors.white54,
-                          fontSize: 14,
+                        SizedBox(height: 4),
+                        Text(
+                          'Neurology Dept • City Hospital',
+                          style: TextStyle(
+                            color: Colors.white54,
+                            fontSize: 14,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (_) => const AddPatientDialog(),
-                      );
-                    },
-                    icon: const Icon(Icons.add, color: Colors.black),
-                    label: const Text(
-                      'Add Patient',
-                      style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF00E5FF),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      ],
                     ),
                   ),
                 ],

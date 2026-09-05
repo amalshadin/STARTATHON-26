@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/doctor_state_provider.dart';
 import '../../../models/patient.dart';
+import 'add_patient_dialog.dart';
 import 'patient_detail_screen.dart';
 
 class PatientRosterScreen extends StatefulWidget {
@@ -40,13 +41,37 @@ class _PatientRosterScreenState extends State<PatientRosterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Patients',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 28,
-                  fontWeight: FontWeight.bold,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Patients',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (_) => const AddPatientDialog(),
+                      );
+                    },
+                    icon: const Icon(Icons.add, color: Colors.black),
+                    label: const Text(
+                      'Add',
+                      style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00E5FF),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 20),
               
