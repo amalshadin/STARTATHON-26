@@ -29,6 +29,7 @@ class DoctorResponse(HapticBaseModel):
     email: str
     phone: Optional[str] = None
     specialization: Optional[str] = None
+    license_number: Optional[str] = None
     institution: Optional[str] = None
     hospital_name: Optional[str] = None
     created_at: datetime
