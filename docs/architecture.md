@@ -1,9 +1,19 @@
 # The HapticSync — System Architecture
 
+```mermaid
+graph TD
+    FlexSensor --> ESP32
+    MPU6050 --> ESP32
+    ESP32 -->|BLE| PatientApp
+    PatientApp <--> Backend
+    DoctorApp <--> Backend
+    Backend <--> Database
+    Backend <--> AI
+```
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                       Hardware Layer                        │
-│   ESP32 Glove: 3x Flex Sensors + 1x MPU6050 (6-axis IMU)   │
+│   ESP32 Glove: 3x Flex Sensors + 1x MPU6050 (6-axis IMU)    │
 └──────────────────────────────┬──────────────────────────────┘
                                │ Bluetooth Low Energy (BLE)
                                ▼
