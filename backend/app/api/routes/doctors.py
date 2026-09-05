@@ -19,10 +19,11 @@ def get_me(
     """Returns the authenticated doctor's profile."""
     return DoctorResponse(
         id=doctor.id,
-        full_name=doctor.profile.full_name,
+        full_name=doctor.full_name or doctor.profile.full_name,
         email=doctor.profile.email,
         phone=doctor.profile.phone,
         specialization=doctor.specialization,
+        license_number=doctor.license_number,
         institution=doctor.institution,
         hospital_name=doctor.hospital_name,
         created_at=doctor.created_at,
