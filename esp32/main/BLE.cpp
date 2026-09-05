@@ -8,6 +8,16 @@
 #define SERVICE_UUID "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 
+class MyCallbacks : public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic *pCharacteristic) {
+    String rxValue = pCharacteristic->getValue();
+    if (rxValue.length() > 0) {
+      Serial.print("Received Value: ");
+      Serial.println(rxValue.c_str());
+    }
+  }
+};
+
 BLECharacteristic *characteristic;
 
 void BLEManager::begin() {
@@ -22,6 +32,7 @@ void BLEManager::begin() {
     CHARACTERISTIC_UUID,
     BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_NOTIFY);
 
+  characteristic->setCallbacks(new MyCallbacks());
   characteristic->addDescriptor(new BLE2902());
 
   characteristic->setValue("Hello from ESP32!");
