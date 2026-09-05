@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/design_tokens.dart';
 import '../../providers/ble_telemetry_provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'widgets/ble_connect_modal.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -41,7 +42,12 @@ class HomeScreen extends StatelessWidget {
                         value: ble.isConnected,
                         onChanged: (val) {
                           if (val) {
-                            ble.connect();
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => const BleConnectModal(),
+                            );
                           } else {
                             ble.disconnect();
                           }
