@@ -2,6 +2,7 @@
 #include "MPU.h"
 #include "FLEX.h"
 #include "PAYLOAD.h"
+#include "LED.h"
 
 BLEManager ble;
 MPU6050 mpu;
@@ -13,6 +14,8 @@ void setup() {
 
   ble.begin();
   mpu.begin();
+  LED::begin();
+  LED::blink(500);
 }
 
 void loop() {
