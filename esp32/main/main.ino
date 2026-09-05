@@ -11,7 +11,7 @@ void setup() {
 }
 
 void loop() {
-  ble.update(value);
+  ble.update(String(value));
   Serial.println(value);
   value++;
   delay(1000);

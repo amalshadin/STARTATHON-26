@@ -37,8 +37,7 @@ void BLEManager::begin() {
   Serial.println("Device name: ESP32-BLE-Test");
 }
 
-void BLEManager::update(int value) {
-  String valStr = String(value);
-  characteristic->setValue(valStr.c_str());
+void BLEManager::update(String value) {
+  characteristic->setValue(value.c_str());
   characteristic->notify();
 }
