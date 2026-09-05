@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../providers/doctor_portal_provider.dart';
 
 class DoctorProfileScreen extends StatefulWidget {
   const DoctorProfileScreen({Key? key}) : super(key: key);
@@ -12,6 +14,9 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final provider = context.watch<DoctorPortalProvider>();
+    final doctor = provider.currentDoctor;
+
     return SafeArea(
       child: Scaffold(
         backgroundColor: const Color(0xFF0A0F1D),
@@ -41,19 +46,19 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
                         child: Icon(Icons.person, size: 50, color: Color(0xFF00E5FF)),
                       ),
                       const SizedBox(height: 16),
-                      const Text(
-                        'Dr. Sarah Jenkins',
-                        style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                      Text(
+                        doctor?.fullName ?? 'Unknown Doctor',
+                        style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
-                      const Text(
-                        'License No: MED-789456',
-                        style: TextStyle(color: Colors.white54, fontSize: 14),
+                      Text(
+                        'License No: ${doctor?.licenseNumber ?? 'N/A'}',
+                        style: const TextStyle(color: Colors.white54, fontSize: 14),
                       ),
                       const SizedBox(height: 4),
-                      const Text(
-                        'Neurology Dept • City Hospital',
-                        style: TextStyle(color: Colors.white54, fontSize: 14),
+                      Text(
+                        '${doctor?.specialization ?? 'Specialization'} • ${doctor?.hospitalName ?? 'Hospital'}',
+                        style: const TextStyle(color: Colors.white54, fontSize: 14),
                       ),
                     ],
                   ),
@@ -90,7 +95,12 @@ class _DoctorProfileScreenState extends State<DoctorProfileScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: () {},
+                    onPressed: () {
+                      // Optionally clear provider state and navigate back to login
+                      provider.authToken = null;
+                      provider.currentDoctor = null;
+                      Navigator.pushReplacementNamed(context, '/'); // assuming '/' is login
+                    },
                     icon: const Icon(Icons.logout, color: Colors.redAccent),
                     label: const Text('Log Out', style: TextStyle(color: Colors.redAccent)),
                     style: OutlinedButton.styleFrom(
