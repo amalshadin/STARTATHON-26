@@ -8,6 +8,8 @@ import 'providers/game_session_provider.dart';
 import 'providers/navigation_provider.dart';
 import 'views/root_scaffold.dart';
 
+import 'views/auth/login_screen.dart';
+
 void main() {
   runApp(const HapticSyncApp());
 }
@@ -27,7 +29,7 @@ class HapticSyncApp extends StatelessWidget {
       child: MaterialApp(
         title: 'The HapticSync',
         theme: DesignTokens.lightTheme,
-        home: const RootScaffold(),
+        home: const LoginScreen(),
         debugShowCheckedModeBanner: false,
       ),
     );

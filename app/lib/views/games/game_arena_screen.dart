@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import '../../providers/ble_telemetry_provider.dart';
 import 'dart:math' as math;
 
+import 'piano_game_screen.dart';
+import 'cargo_crane_screen.dart';
+
 class GameArenaScreen extends StatelessWidget {
   const GameArenaScreen({super.key});
 
@@ -21,9 +24,21 @@ class GameArenaScreen extends StatelessWidget {
             children: [
               Text('Available Exercises', style: DesignTokens.headingStyle.copyWith(color: DesignTokens.primaryColor)),
               const SizedBox(height: 16),
-              _buildGameCard(context, 'Piano Tiles', 'Flexion & Extension Training', Icons.piano),
+              _buildGameCard(
+                context, 
+                'Piano Tiles', 
+                'Flexion & Extension Training', 
+                Icons.piano,
+                () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PianoGameScreen())),
+              ),
               const SizedBox(height: 16),
-              _buildGameCard(context, 'Pick-and-Place', 'Spatial Pinch Training', Icons.pan_tool),
+              _buildGameCard(
+                context, 
+                'Cargo Crane', 
+                'Spatial Pinch Training', 
+                Icons.pan_tool, 
+                () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CargoCraneScreen())),
+              ),
               
               const Spacer(),
               const Text('Live Glove Telemetry (Debug)', style: TextStyle(fontWeight: FontWeight.bold)),
@@ -58,12 +73,12 @@ class GameArenaScreen extends StatelessWidget {
     );
   }
   
-  Widget _buildGameCard(BuildContext context, String title, String subtitle, IconData icon) {
+  Widget _buildGameCard(BuildContext context, String title, String subtitle, IconData icon, VoidCallback onTap) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.borderRadiusMedium)),
       child: InkWell(
-        onTap: () {},
+        onTap: onTap,
         borderRadius: BorderRadius.circular(DesignTokens.borderRadiusMedium),
         child: Padding(
           padding: const EdgeInsets.all(20.0),

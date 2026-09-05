@@ -11,7 +11,7 @@ class ProfileScreen extends StatelessWidget {
         title: const Text('Therapist Summary', style: DesignTokens.headingStyle),
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: DesignTokens.defaultPadding,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
