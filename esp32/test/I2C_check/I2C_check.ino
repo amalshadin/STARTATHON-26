@@ -1,4 +1,4 @@
-#include "../../PIN.h"
+#include "../../main/PIN.h"
 
 #include <Wire.h>
 
