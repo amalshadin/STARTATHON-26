@@ -12,6 +12,7 @@ class BleService {
   BleService._internal();
 
   BluetoothDevice? _connectedDevice;
+  BluetoothCharacteristic? _subscribedCharacteristic;
   StreamSubscription<BluetoothConnectionState>? _connectionStateSubscription;
   StreamSubscription<List<int>>? _characteristicSubscription;
 
@@ -70,16 +71,25 @@ class BleService {
   Future<void> connectToDevice(BluetoothDevice device, {Function(String)? onError}) async {
     try {
       await FlutterBluePlus.stopScan();
+      
+      // Clear any zombie connection states
+      if (device.isConnected) {
+        await device.disconnect();
+      }
+      
+      _connectionStateSubscription?.cancel();
       _connectedDevice = device;
       
+      bool isConnecting = true;
       _connectionStateSubscription = device.connectionState.listen((state) {
         _connectionStateController.add(state);
-        if (state == BluetoothConnectionState.disconnected) {
+        if (state == BluetoothConnectionState.disconnected && !isConnecting) {
           _cleanUp();
         }
       });
 
       await device.connect(autoConnect: false, timeout: const Duration(seconds: 10));
+      isConnecting = false;
       
       if (Platform.isAndroid) {
         try {
@@ -88,6 +98,9 @@ class BleService {
           debugPrint('MTU request failed: $e');
         }
       }
+      
+      // Give the Android Bluetooth stack time to settle the MTU before requesting services
+      await Future.delayed(const Duration(milliseconds: 500));
       
       await discoverAndSubscribe(onError: onError);
     } catch (e) {
@@ -116,6 +129,7 @@ class BleService {
       }
 
       if (targetCharacteristic != null) {
+        _subscribedCharacteristic = targetCharacteristic;
         await targetCharacteristic.setNotifyValue(true);
         _characteristicSubscription = targetCharacteristic.lastValueStream.listen((value) {
           if (value.isNotEmpty) {
@@ -133,13 +147,23 @@ class BleService {
   }
 
   Future<void> disconnect() async {
+    if (_subscribedCharacteristic != null) {
+      try {
+        await _subscribedCharacteristic!.setNotifyValue(false);
+      } catch (_) {}
+      _subscribedCharacteristic = null;
+    }
+    
     if (_connectedDevice != null) {
-      await _connectedDevice!.disconnect();
+      try {
+        await _connectedDevice!.disconnect();
+      } catch (_) {}
     }
     _cleanUp();
   }
 
   void _cleanUp() {
+    _subscribedCharacteristic = null;
     _characteristicSubscription?.cancel();
     _connectionStateSubscription?.cancel();
     _connectedDevice = null;

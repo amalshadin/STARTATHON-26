@@ -23,40 +23,56 @@ class GameArenaScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('Available Exercises', style: DesignTokens.headingStyle.copyWith(color: DesignTokens.primaryColor)),
+              Text(
+                'Available Exercises',
+                style: DesignTokens.headingStyle.copyWith(
+                  color: DesignTokens.primaryColor,
+                ),
+              ),
               const SizedBox(height: 16),
               _buildGameCard(
-                context, 
-                'Piano Tiles', 
-                'Flexion & Extension Training', 
+                context,
+                'Piano Tiles',
+                'Flexion & Extension Training',
                 Icons.piano,
-                () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const PianoGameScreen())),
+                () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const PianoGameScreen()),
+                ),
               ),
               const SizedBox(height: 16),
               _buildGameCard(
-                context, 
-                'Cargo Crane', 
-                'Spatial Pinch Training', 
-                Icons.pan_tool, 
-                () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CargoCraneScreen())),
+                context,
+                'Cargo Crane',
+                'Spatial Pinch Training',
+                Icons.pan_tool,
+                () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CargoCraneScreen()),
+                ),
               ),
               const SizedBox(height: 16),
               _buildGameCard(
-                context, 
-                'AstroShield', 
-                'Multi-Sensor Reflex Training', 
-                Icons.rocket_launch, 
-                () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SpaceGameScreen())),
+                context,
+                'AstroShield',
+                'Multi-Sensor Reflex Training',
+                Icons.rocket_launch,
+                () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SpaceGameScreen()),
+                ),
               ),
-              
+
               const SizedBox(height: 40),
-              const Text('Live Glove Telemetry (Debug)', style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text(
+                'Live Glove Telemetry (Debug)',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               Consumer<BleTelemetryProvider>(
                 builder: (context, ble, child) {
                   if (!ble.isConnected) {
-                    return const Text('Connect glove on Home screen to see data');
+                    return const Text(
+                      'Connect glove on Home screen to see data',
+                    );
                   }
-                  
+
                   return Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -66,9 +82,15 @@ class GameArenaScreen extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Fingers: ${ble.latestPacket.flexValues.map((v) => v.toStringAsFixed(0)).join(', ')}'),
-                        Text('Grip: ${ble.latestPacket.fsrGripPressure.toStringAsFixed(1)}'),
-                        Text('Pitch: ${ble.latestPacket.pitch.toStringAsFixed(1)} | Roll: ${ble.latestPacket.roll.toStringAsFixed(1)}'),
+                        Text(
+                          'Fingers: ${ble.latestPacket.flexValues.map((v) => v.toStringAsFixed(0)).join(', ')}',
+                        ),
+                        Text(
+                          'Grip: ${ble.latestPacket.fsrGripPressure.toStringAsFixed(1)}',
+                        ),
+                        Text(
+                          'Pitch: ${ble.latestPacket.pitch.toStringAsFixed(1)} | Roll: ${ble.latestPacket.roll.toStringAsFixed(1)} | Yaw: ${ble.latestPacket.yaw.toStringAsFixed(1)}',
+                        ),
                       ],
                     ),
                   );
@@ -81,11 +103,19 @@ class GameArenaScreen extends StatelessWidget {
       ),
     );
   }
-  
-  Widget _buildGameCard(BuildContext context, String title, String subtitle, IconData icon, VoidCallback onTap) {
+
+  Widget _buildGameCard(
+    BuildContext context,
+    String title,
+    String subtitle,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(DesignTokens.borderRadiusMedium)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(DesignTokens.borderRadiusMedium),
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(DesignTokens.borderRadiusMedium),
@@ -106,8 +136,16 @@ class GameArenaScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: DesignTokens.headingStyle.copyWith(fontSize: 20)),
-                    Text(subtitle, style: DesignTokens.bodyStyle.copyWith(color: Colors.grey[700])),
+                    Text(
+                      title,
+                      style: DesignTokens.headingStyle.copyWith(fontSize: 20),
+                    ),
+                    Text(
+                      subtitle,
+                      style: DesignTokens.bodyStyle.copyWith(
+                        color: Colors.grey[700],
+                      ),
+                    ),
                   ],
                 ),
               ),
