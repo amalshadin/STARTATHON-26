@@ -12,11 +12,11 @@ FLEXData FLEXManager::read() {
 }
 
 void FLEXManager::printData(const FLEXData& data) {
-  Serial.println("Flex 1: ");
+  Serial.print("Flex 1: ");
   Serial.println(data.flex1);
-  Serial.println("Flex 2: ");
+  Serial.print("Flex 2: ");
   Serial.println(data.flex2);
-  Serial.println("Flex 3: ");
+  Serial.print("Flex 3: ");
   Serial.println(data.flex3);
 
   Serial.println("-----------------------");
