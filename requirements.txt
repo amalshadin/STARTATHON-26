@@ -1,2 +1,6 @@
 pyserial
 matplotlib
+fastapi
+uvicorn
+requests
+pydantic
