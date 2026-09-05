@@ -1,15 +1,13 @@
-#include <Arduino.h>
+#include "PIN.h"
 #include "FLEX.h"
 
-const int flexPin1 = 34;
-const int flexPin2 = 35;
-const int flexPin3 = 36;
+#include <Arduino.h>
 
 FLEXData FLEXManager::read() {
   FLEXData data;
-  data.flex1 = analogRead(flexPin1);
-  data.flex2 = analogRead(flexPin2);
-  data.flex3 = analogRead(flexPin3);
+  data.flex1 = analogRead(PIN::flexPin1);
+  data.flex2 = analogRead(PIN::flexPin2);
+  data.flex3 = analogRead(PIN::flexPin3);
   return data;
 }
 

@@ -1,11 +1,14 @@
 #include "MPU.h"
+#include "PIN.h"
+
 #include <Wire.h>
+#include <Arduino.h>
 
 const int MPU_ADDR = 0x68;
 
 void MPU6050::begin() {
   // Initialize I2C pins (SDA=21, SCL=22)
-  Wire.begin(21, 22);
+  Wire.begin(PIN::SDAPin, PIN::SCLPin);
 
   // Wake up the MPU-6500 / MPU-6050
   // By default, it starts in sleep mode.
