@@ -15,7 +15,7 @@ void setup() {
   ble.begin();
   mpu.begin();
   LED::begin();
-  LED::blink(500);
+  LED::blinkFor(200, 1000, [](){ LED::blink(1000); });
 }
 
 void loop() {
