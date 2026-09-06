@@ -155,26 +155,41 @@ def get_current_doctor(
 
 
 def get_current_patient(
-    current_user: Profile = Depends(get_current_user),
+    credentials: Optional[HTTPAuthorizationCredentials] = Security(_bearer_optional),
     db: Session = Depends(get_db),
 ) -> Patient:
     """
     Require the current user to be a patient.
     Returns the Patient record.
-    Raises 403 if the user is a doctor.
+    Supports development fallback when testing locally with placeholder tokens.
     """
-    if current_user.role != UserRole.patient:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="This endpoint requires a patient account",
-        )
-    patient = db.get(Patient, current_user.id)
-    if patient is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Patient profile record not found",
-        )
-    return patient
+    raw_token = (credentials.credentials or "").strip() if credentials else ""
+    if raw_token and raw_token.count(".") == 2 and raw_token.lower() not in ("null", "undefined", "dummy_token"):
+        try:
+            current_user = get_current_user(credentials, db)
+            if current_user.role == UserRole.patient:
+                patient = db.get(Patient, current_user.id)
+                if patient is not None:
+                    return patient
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This endpoint requires a patient account",
+            )
+        except HTTPException:
+            if not settings.is_development:
+                raise
+
+    # In development mode, fallback to registered patient
+    if settings.is_development:
+        patient = db.execute(select(Patient)).scalars().first()
+        if patient is not None:
+            return patient
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="This endpoint requires an authenticated patient account",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 def require_doctor_patient_access(

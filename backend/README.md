@@ -50,7 +50,7 @@ backend/
 │   │       ├── games.py             # Game registry
 │   │       ├── health.py            # API & DB health checks
 │   │       ├── patients.py          # Doctor patient onboarding & invitations
-│   │       └── therapy_sessions.py  # Top-level rehabilitation sessions
+│   │       └── ai.py                # AI clinical overview & parameter updates
 │   ├── core/
 │   │   ├── config.py        # Pydantic Settings & environment validation
 │   │   ├── deps.py          # Dependency injection (get_db, auth & roles)

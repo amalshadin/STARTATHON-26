@@ -3,9 +3,8 @@ AI analysis and clinical report models.
 
 Architecture decisions:
 
-1. AIAnalysis can be linked to either a game_session OR a therapy_session,
-   or both (e.g., a fatigue analysis spans a full therapy session but references
-   individual game sessions). agent_type identifies which agent ran.
+1. AIAnalysis is linked to a game_session.
+   agent_type identifies which analysis agent ran.
 
 2. Clinical reports use structured text columns (situation, background, assessment,
    recommendation) rather than a single JSONB blob. This makes the SBAR structure
@@ -80,12 +79,6 @@ class AIAnalysis(Base):
         nullable=True,
         index=True,
     )
-    therapy_session_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        PGUUID(as_uuid=True),
-        ForeignKey("therapy_sessions.id", ondelete="SET NULL"),
-        nullable=True,
-        index=True,
-    )
     agent_type: Mapped[AgentType] = mapped_column(
         SAEnum(AgentType, name="agent_type"), nullable=False
     )
@@ -105,9 +98,6 @@ class AIAnalysis(Base):
     patient: Mapped["Patient"] = relationship("Patient", back_populates="ai_analyses")
     game_session: Mapped[Optional["GameSession"]] = relationship(
         "GameSession", back_populates="ai_analyses"
-    )
-    therapy_session: Mapped[Optional["TherapySession"]] = relationship(
-        "TherapySession", back_populates="ai_analyses"
     )
 
 
@@ -140,11 +130,6 @@ class ClinicalReport(Base):
         nullable=False,
         index=True,
     )
-    therapy_session_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        PGUUID(as_uuid=True),
-        ForeignKey("therapy_sessions.id", ondelete="SET NULL"),
-        nullable=True,
-    )
     # SBAR fields
     situation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     background: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -161,6 +146,3 @@ class ClinicalReport(Base):
     # Relationships
     patient: Mapped["Patient"] = relationship("Patient", back_populates="clinical_reports")
     doctor: Mapped["Doctor"] = relationship("Doctor", back_populates="clinical_reports")
-    therapy_session: Mapped[Optional["TherapySession"]] = relationship(
-        "TherapySession", back_populates="clinical_reports"
-    )

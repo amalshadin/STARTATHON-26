@@ -5,7 +5,7 @@ IMPORTANT: This file must import all model classes in dependency order
 (parents before children) so that:
   1. Alembic autogenerate can detect all tables via Base.metadata.
   2. SQLAlchemy's mapper registry can resolve all string-based relationship
-     references (e.g., Mapped["TherapySession"]) before the first session query.
+     references (e.g., Mapped["GameSession"]) before the first session query.
 
 Add new model files here when introducing new game-related models.
 """
@@ -29,7 +29,6 @@ from app.db.models.device import (
 from app.db.models.game import Game
 
 from app.db.models.session import (
-    TherapySession,
     GameSession,
     GameResult,
     SessionMetric,
@@ -52,7 +51,7 @@ __all__ = [
     # Game
     "Game",
     # Session
-    "TherapySession", "GameSession", "GameResult", "SessionMetric", "SessionStatus",
+    "GameSession", "GameResult", "SessionMetric", "SessionStatus",
     # AI
     "AIAnalysis", "ClinicalReport", "AIAnalysisStatus", "AgentType",
 ]

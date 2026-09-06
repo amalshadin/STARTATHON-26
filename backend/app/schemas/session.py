@@ -8,36 +8,6 @@ from app.schemas.common import HapticBaseModel
 from app.db.models.session import SessionStatus
 
 
-# ── Therapy Session ───────────────────────────────────────────────────────────
-
-class TherapySessionCreate(HapticBaseModel):
-    """
-    POST /therapy-sessions — idempotent.
-    id is CLIENT-GENERATED (UUID v4). Sending the same id twice returns
-    the existing session rather than creating a duplicate.
-    """
-    id: uuid.UUID = Field(..., description="Client-generated UUID v4")
-    patient_id: uuid.UUID
-    device_id: Optional[uuid.UUID] = None
-    started_at: datetime
-    ended_at: Optional[datetime] = None
-    duration_s: Optional[int] = Field(None, ge=0)
-    status: SessionStatus = SessionStatus.completed
-    notes: Optional[str] = None
-
-
-class TherapySessionResponse(HapticBaseModel):
-    id: uuid.UUID
-    patient_id: uuid.UUID
-    device_id: Optional[uuid.UUID] = None
-    started_at: datetime
-    ended_at: Optional[datetime] = None
-    duration_s: Optional[int] = None
-    status: SessionStatus
-    notes: Optional[str] = None
-    created_at: datetime
-
-
 # ── Game Session ──────────────────────────────────────────────────────────────
 
 class GameSessionCreate(HapticBaseModel):
@@ -46,7 +16,7 @@ class GameSessionCreate(HapticBaseModel):
     configuration must include the exact game parameters used during play.
     """
     id: uuid.UUID = Field(..., description="Client-generated UUID v4")
-    therapy_session_id: uuid.UUID
+    patient_id: Optional[uuid.UUID] = Field(None, description="Patient UUID (defaults to authenticated patient)")
     game_id: uuid.UUID
     device_id: Optional[uuid.UUID] = None
     calibration_id: Optional[uuid.UUID] = None
@@ -67,7 +37,7 @@ class GameSessionCreate(HapticBaseModel):
 
 class GameSessionResponse(HapticBaseModel):
     id: uuid.UUID
-    therapy_session_id: uuid.UUID
+    patient_id: uuid.UUID
     game_id: uuid.UUID
     device_id: Optional[uuid.UUID] = None
     calibration_id: Optional[uuid.UUID] = None
@@ -152,13 +122,3 @@ class GameSessionSummary(HapticBaseModel):
     score: Optional[int] = None
     accuracy: Optional[float] = None
 
-
-class TherapySessionWithGames(HapticBaseModel):
-    """Therapy session with embedded game session summaries."""
-    id: uuid.UUID
-    started_at: datetime
-    ended_at: Optional[datetime] = None
-    duration_s: Optional[int] = None
-    status: SessionStatus
-    game_sessions: List[GameSessionSummary] = []
-    created_at: datetime

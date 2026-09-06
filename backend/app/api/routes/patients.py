@@ -17,7 +17,7 @@ from app.core.deps import get_current_doctor, get_current_user, require_doctor_p
 from app.db.database import get_db
 from app.db.models import Doctor, Profile
 from app.schemas.patient import PatientCreate, PatientCreateResponse, PatientResponse
-from app.schemas.session import TherapySessionWithGames, GameSessionSummary
+from app.schemas.session import GameSessionSummary
 from app.services import patient_service, session_service
 
 logger = logging.getLogger(__name__)
@@ -119,36 +119,25 @@ def get_patient(
 
 @router.get(
     "/{patient_id}/history",
-    response_model=List[TherapySessionWithGames],
+    response_model=List[GameSessionSummary],
     summary="Get patient session history",
 )
 def get_patient_history(
     patient_id: uuid.UUID,
     db: Session = Depends(get_db),
     patient=Depends(require_doctor_patient_access),
-) -> List[TherapySessionWithGames]:
-    """Returns recent therapy sessions with embedded game session summaries."""
-    therapy_sessions = session_service.get_patient_therapy_sessions(db, patient_id)
-    result = []
-    for ts in therapy_sessions:
-        game_summaries = []
-        for gs in ts.game_sessions:
-            game_summaries.append(GameSessionSummary(
-                id=gs.id,
-                game_id=gs.game_id,
-                started_at=gs.started_at,
-                duration_ms=gs.duration_ms,
-                status=gs.status,
-                score=gs.result.score if gs.result else None,
-                accuracy=gs.result.accuracy if gs.result else None,
-            ))
-        result.append(TherapySessionWithGames(
-            id=ts.id,
-            started_at=ts.started_at,
-            ended_at=ts.ended_at,
-            duration_s=ts.duration_s,
-            status=ts.status,
-            game_sessions=game_summaries,
-            created_at=ts.created_at,
-        ))
-    return result
+) -> List[GameSessionSummary]:
+    """Returns recent game sessions with embedded score and accuracy summaries."""
+    game_sessions = session_service.get_patient_game_sessions(db, patient_id)
+    return [
+        GameSessionSummary(
+            id=gs.id,
+            game_id=gs.game_id,
+            started_at=gs.started_at,
+            duration_ms=gs.duration_ms,
+            status=gs.status,
+            score=gs.result.score if gs.result else None,
+            accuracy=gs.result.accuracy if gs.result else None,
+        )
+        for gs in game_sessions
+    ]

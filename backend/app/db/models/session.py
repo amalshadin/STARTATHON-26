@@ -1,12 +1,9 @@
 """
-Session models: TherapySession, GameSession, GameResult, SessionMetric.
+Session models: GameSession, GameResult, SessionMetric.
 
 Architecture decisions:
 
-1. TherapySession is the top-level container for a clinical visit/home session.
-   A therapy session may contain multiple game sessions (Piano + Pick-and-Place).
-   Without this level, longitudinal queries across games in one visit require
-   timestamp range joining, which is fragile.
+1. GameSession connects directly to Patient (patient_id). id fields are client-generated UUIDs (no server-side default).
 
 2. id fields are client-generated UUIDs (no server-side default).
    Flutter generates UUID v4 before the session starts and sends it with the upload.
@@ -62,71 +59,9 @@ class SessionStatus(str, enum.Enum):
 
 # ── Models ────────────────────────────────────────────────────────────────────
 
-class TherapySession(Base):
-    """
-    Top-level container representing one rehabilitation session (home or clinical).
-    May contain multiple GameSession records.
-
-    id is CLIENT-GENERATED (Flutter UUID v4). No server-side default.
-    POST /therapy-sessions is idempotent: re-sending the same id returns
-    the existing record.
-    """
-    __tablename__ = "therapy_sessions"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True),
-        primary_key=True,
-        comment="Client-generated UUID v4 (enables idempotent retry on upload failure)",
-    )
-    patient_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True),
-        ForeignKey("patients.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    device_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        PGUUID(as_uuid=True),
-        ForeignKey("devices.id", ondelete="SET NULL"),
-        nullable=True,
-        comment="Nullable: session may occur without a glove (future UI-only mode)",
-    )
-    started_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False,
-        comment="Session start time as recorded by Flutter (device clock)",
-    )
-    ended_at: Mapped[Optional[datetime]] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    duration_s: Mapped[Optional[int]] = mapped_column(
-        Integer, nullable=True, comment="Total session duration in seconds"
-    )
-    status: Mapped[SessionStatus] = mapped_column(
-        SAEnum(SessionStatus, name="session_status"),
-        nullable=False,
-        default=SessionStatus.completed,
-    )
-    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), nullable=False
-    )
-
-    # Relationships
-    patient: Mapped["Patient"] = relationship("Patient", back_populates="therapy_sessions")
-    device: Mapped[Optional["Device"]] = relationship("Device", back_populates="therapy_sessions")
-    game_sessions: Mapped[list["GameSession"]] = relationship(
-        "GameSession", back_populates="therapy_session"
-    )
-    ai_analyses: Mapped[list["AIAnalysis"]] = relationship(
-        "AIAnalysis", back_populates="therapy_session"
-    )
-    clinical_reports: Mapped[list["ClinicalReport"]] = relationship(
-        "ClinicalReport", back_populates="therapy_session"
-    )
-
-
 class GameSession(Base):
     """
-    A single game played within a TherapySession.
+    A single game played by a Patient.
 
     id is CLIENT-GENERATED (Flutter UUID v4).
     configuration records the exact game parameters so later analysis
@@ -139,9 +74,9 @@ class GameSession(Base):
         primary_key=True,
         comment="Client-generated UUID v4",
     )
-    therapy_session_id: Mapped[uuid.UUID] = mapped_column(
+    patient_id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True),
-        ForeignKey("therapy_sessions.id", ondelete="CASCADE"),
+        ForeignKey("patients.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -190,9 +125,7 @@ class GameSession(Base):
     )
 
     # Relationships
-    therapy_session: Mapped["TherapySession"] = relationship(
-        "TherapySession", back_populates="game_sessions"
-    )
+    patient: Mapped["Patient"] = relationship("Patient", back_populates="game_sessions")
     game: Mapped["Game"] = relationship("Game", back_populates="game_sessions")
     device: Mapped[Optional["Device"]] = relationship("Device", back_populates="game_sessions")
     calibration: Mapped[Optional["DeviceCalibration"]] = relationship(
