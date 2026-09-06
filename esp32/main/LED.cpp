@@ -32,9 +32,9 @@ void LED::blink(uint32_t interval_ms) {
   blinker.attach_ms(interval_ms, toggle);
 }
 
-void LED::blinkFor(uint32_t interval_ms, uint32_t duration_ms) {
+void LED::blinkFor(uint32_t interval_ms, uint32_t duration_ms, Callback onComplete) {
   blink(interval_ms);
-  durationTimer.once_ms(duration_ms, LED::off);
+  durationTimer.once_ms(duration_ms, onComplete);
 }
 
 void LED::stopBlink() {
