@@ -23,7 +23,6 @@ void MPU6050::begin() {
 
 void MPU6050::InitializedMessage() {
   Serial.println("MPU6050 Initialized!");
-  Serial.println("Printing raw data from the sensor:");
 }
 
 MPUData MPU6050::read() {

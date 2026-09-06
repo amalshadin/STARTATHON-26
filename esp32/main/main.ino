@@ -12,6 +12,7 @@ Payload payload;
 void setup() {
   Serial.begin(115200);
 
+  ble.setDeviceName("ESP32-CS-ROVER");
   ble.begin();
   mpu.begin();
   LED::begin();
