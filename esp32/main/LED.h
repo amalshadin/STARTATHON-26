@@ -13,10 +13,12 @@ public:
   static void off();
   static void setState(bool state);
   static void blink(uint32_t interval_ms);
+  static void blinkFor(uint32_t interval_ms, uint32_t duration_ms);
   static void stopBlink();
   static void toggle();
 private:
   static Ticker blinker;
+  static Ticker durationTimer;
   static bool state;
 };
 

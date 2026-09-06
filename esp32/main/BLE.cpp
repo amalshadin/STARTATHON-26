@@ -6,6 +6,7 @@ String BLEManager::deviceName = "ESP32-CS-ROVER";
 #include <BLEUtils.h>
 #include <BLEServer.h>
 #include <BLE2902.h>
+#include "LED.h"
 
 #define SERVICE_UUID "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
 #define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
@@ -23,10 +24,14 @@ class MyCallbacks : public BLECharacteristicCallbacks {
 class MyServerCallbacks : public BLEServerCallbacks {
   void onConnect(BLEServer *pServer) {
     Serial.println("Device connected!");
+    // Blink LED every 200ms for 2000ms (2 seconds)
+    LED::blinkFor(200, 2000);
   }
 
   void onDisconnect(BLEServer *pServer) {
     Serial.println("Device disconnected!");
+    // Blink LED every 500ms for 3000ms (3 seconds)
+    LED::blinkFor(500, 3000);
     // Restart advertising so other devices can connect after a disconnect
     BLEDevice::startAdvertising();
   }
