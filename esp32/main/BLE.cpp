@@ -1,5 +1,7 @@
 #include "BLE.h"
 
+String BLEManager::deviceName = "ESP32-CS-ROVER";
+
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
@@ -22,7 +24,7 @@ BLECharacteristic *characteristic;
 
 void BLEManager::begin() {
 
-  BLEDevice::init("ESP32-BLE-Test");
+  BLEDevice::init(deviceName.c_str());
 
   BLEServer *server = BLEDevice::createServer();
 
@@ -45,7 +47,7 @@ void BLEManager::begin() {
   advertising->start();
 
   Serial.println("BLE started!");
-  Serial.println("Device name: ESP32-BLE-Test");
+  Serial.println("Device name: " + deviceName);
 }
 
 void BLEManager::update(String value) {
