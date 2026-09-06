@@ -1,7 +1,5 @@
 #include "BLE.h"
 
-String BLEManager::deviceName = "ESP32-CS-ROVER";
-
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
