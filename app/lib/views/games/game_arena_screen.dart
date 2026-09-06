@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../../core/design_tokens.dart';
 import 'package:provider/provider.dart';
 import '../../providers/ble_telemetry_provider.dart';
+import '../../providers/calibration_provider.dart';
+
 import 'dart:math' as math;
 
 import 'piano_game_screen.dart';
@@ -65,8 +67,8 @@ class GameArenaScreen extends StatelessWidget {
                 'Live Glove Telemetry (Debug)',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              Consumer<BleTelemetryProvider>(
-                builder: (context, ble, child) {
+              Consumer2<BleTelemetryProvider, CalibrationProvider>(
+                builder: (context, ble, cal, child) {
                   if (!ble.isConnected) {
                     return const Text(
                       'Connect glove on Home screen to see data',

@@ -19,13 +19,19 @@ class BleService {
   final _sensorStreamController = StreamController<List<int>>.broadcast();
   Stream<List<int>> get sensorStream => _sensorStreamController.stream;
 
-  final _connectionStateController = StreamController<BluetoothConnectionState>.broadcast();
-  Stream<BluetoothConnectionState> get connectionStateStream => _connectionStateController.stream;
+  final _connectionStateController =
+      StreamController<BluetoothConnectionState>.broadcast();
+  Stream<BluetoothConnectionState> get connectionStateStream =>
+      _connectionStateController.stream;
 
-  bool get isConnected => _connectedDevice != null && _connectedDevice!.isConnected;
-  
-  String get _targetServiceUuid => dotenv.env['BLE_SERVICE_UUID'] ?? '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
-  String get _targetCharacteristicUuid => dotenv.env['BLE_CHARACTERISTIC_UUID'] ?? 'beb5483e-36e1-4688-b7f5-ea07361b26a8';
+  bool get isConnected =>
+      _connectedDevice != null && _connectedDevice!.isConnected;
+
+  String get _targetServiceUuid =>
+      dotenv.env['BLE_SERVICE_UUID'] ?? '4fafc201-1fb5-459e-8fcc-c5c9c331914b';
+  String get _targetCharacteristicUuid =>
+      dotenv.env['BLE_CHARACTERISTIC_UUID'] ??
+      'beb5483e-36e1-4688-b7f5-ea07361b26a8';
 
   Stream<List<ScanResult>> get scanResults => FlutterBluePlus.scanResults;
   Stream<bool> get isScanning => FlutterBluePlus.isScanning;
@@ -54,32 +60,34 @@ class BleService {
         return;
       }
 
-      if (await FlutterBluePlus.adapterState.first == BluetoothAdapterState.off) {
+      if (await FlutterBluePlus.adapterState.first ==
+          BluetoothAdapterState.off) {
         onError?.call('Bluetooth is turned off.');
         return;
       }
 
       // Start scanning
-      await FlutterBluePlus.startScan(
-        timeout: const Duration(seconds: 15),
-      );
+      await FlutterBluePlus.startScan(timeout: const Duration(seconds: 15));
     } catch (e) {
       onError?.call('Error scanning for devices: $e');
     }
   }
 
-  Future<void> connectToDevice(BluetoothDevice device, {Function(String)? onError}) async {
+  Future<void> connectToDevice(
+    BluetoothDevice device, {
+    Function(String)? onError,
+  }) async {
     try {
       await FlutterBluePlus.stopScan();
-      
+
       // Clear any zombie connection states
       if (device.isConnected) {
         await device.disconnect();
       }
-      
+
       _connectionStateSubscription?.cancel();
       _connectedDevice = device;
-      
+
       bool isConnecting = true;
       _connectionStateSubscription = device.connectionState.listen((state) {
         _connectionStateController.add(state);
@@ -88,9 +96,12 @@ class BleService {
         }
       });
 
-      await device.connect(autoConnect: false, timeout: const Duration(seconds: 10));
+      await device.connect(
+        autoConnect: false,
+        timeout: const Duration(seconds: 10),
+      );
       isConnecting = false;
-      
+
       if (Platform.isAndroid) {
         try {
           await device.requestMtu(256);
@@ -98,10 +109,10 @@ class BleService {
           debugPrint('MTU request failed: $e');
         }
       }
-      
+
       // Give the Android Bluetooth stack time to settle the MTU before requesting services
       await Future.delayed(const Duration(milliseconds: 500));
-      
+
       await discoverAndSubscribe(onError: onError);
     } catch (e) {
       onError?.call('Failed to connect: $e');
@@ -111,16 +122,20 @@ class BleService {
 
   Future<void> discoverAndSubscribe({Function(String)? onError}) async {
     if (_connectedDevice == null) return;
-    
+
     try {
-      List<BluetoothService> services = await _connectedDevice!.discoverServices();
-      
+      List<BluetoothService> services = await _connectedDevice!
+          .discoverServices();
+
       BluetoothCharacteristic? targetCharacteristic;
-      
+
       for (BluetoothService service in services) {
-        if (service.uuid.toString().toLowerCase() == _targetServiceUuid.toLowerCase()) {
-          for (BluetoothCharacteristic characteristic in service.characteristics) {
-            if (characteristic.uuid.toString().toLowerCase() == _targetCharacteristicUuid.toLowerCase()) {
+        if (service.uuid.toString().toLowerCase() ==
+            _targetServiceUuid.toLowerCase()) {
+          for (BluetoothCharacteristic characteristic
+              in service.characteristics) {
+            if (characteristic.uuid.toString().toLowerCase() ==
+                _targetCharacteristicUuid.toLowerCase()) {
               targetCharacteristic = characteristic;
               break;
             }
@@ -131,11 +146,12 @@ class BleService {
       if (targetCharacteristic != null) {
         _subscribedCharacteristic = targetCharacteristic;
         await targetCharacteristic.setNotifyValue(true);
-        _characteristicSubscription = targetCharacteristic.lastValueStream.listen((value) {
-          if (value.isNotEmpty) {
-            _sensorStreamController.add(value);
-          }
-        });
+        _characteristicSubscription = targetCharacteristic.lastValueStream
+            .listen((value) {
+              if (value.isNotEmpty) {
+                _sensorStreamController.add(value);
+              }
+            });
       } else {
         onError?.call('Target characteristic not found. Please check UUIDs.');
         await disconnect();
@@ -153,7 +169,7 @@ class BleService {
       } catch (_) {}
       _subscribedCharacteristic = null;
     }
-    
+
     if (_connectedDevice != null) {
       try {
         await _connectedDevice!.disconnect();

@@ -5,6 +5,7 @@ import 'providers/doctor_portal_provider.dart';
 import 'views/auth/login_screen.dart';
 
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
   runApp(
     MultiProvider(

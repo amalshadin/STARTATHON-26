@@ -30,7 +30,9 @@ class DoctorApiService {
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
-        throw Exception('Login failed: ${response.statusCode}');
+        throw Exception(
+          'Login failed (${response.statusCode}): ${response.body}',
+        );
       }
     } catch (e) {
       throw Exception('Network error: $e');
@@ -123,6 +125,24 @@ class DoctorApiService {
         return jsonDecode(response.body) as List<dynamic>;
       } else {
         throw Exception('Failed to fetch patient history');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+  Future<Map<String, dynamic>> getGameSessionAiOverview(String gameSessionId) async {
+    try {
+      final response = await http
+          .get(
+            Uri.parse('$baseUrl/game-sessions/$gameSessionId/ai-overview'),
+            headers: _headers,
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        throw Exception('Failed to fetch AI overview');
       }
     } catch (e) {
       throw Exception('Network error: $e');
