@@ -175,7 +175,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
         ),
         const SizedBox(height: 40),
         
-        ...List.generate(3, (index) => _buildLiveBar('Finger ${index + 1}', ble.latestPacket.flexValues[index] / 4095.0, Colors.blue)),
+        ...List.generate(3, (index) => _buildLiveBar('Finger ${index + 1} (${ble.latestPacket.flexValues[index].toInt()})', ble.latestPacket.flexValues[index] / 65535.0, Colors.blue)),
         const SizedBox(height: 40),
 
         if (_isRecording)
@@ -211,7 +211,7 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
         ),
         const SizedBox(height: 40),
         
-        ...List.generate(3, (index) => _buildLiveBar('Finger ${index + 1}', ble.latestPacket.flexValues[index] / 4095.0, Colors.green)),
+        ...List.generate(3, (index) => _buildLiveBar('Finger ${index + 1} (${ble.latestPacket.flexValues[index].toInt()})', ble.latestPacket.flexValues[index] / 65535.0, Colors.green)),
         const SizedBox(height: 40),
 
         if (_isRecording)

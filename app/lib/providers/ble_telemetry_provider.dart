@@ -106,6 +106,40 @@ class BleTelemetryProvider extends ChangeNotifier {
   }
 
   void processBleBytes(List<int> bytes) {
+    if (bytes.isEmpty) return;
+
+    try {
+      // Attempt to parse as comma-separated string first
+      String str = String.fromCharCodes(bytes).replaceAll('\x00', '').trim();
+      if (str.contains(',') && RegExp(r'^[0-9\., \-]+$').hasMatch(str)) {
+        List<String> parts = str.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+        if (parts.length >= 3) {
+          double flex1 = double.tryParse(parts[0]) ?? 0;
+          double flex2 = double.tryParse(parts[1]) ?? 0;
+          double flex3 = double.tryParse(parts[2]) ?? 0;
+          
+          double pitch = parts.length > 3 ? (double.tryParse(parts[3]) ?? 0) : 0;
+          double roll = parts.length > 4 ? (double.tryParse(parts[4]) ?? 0) : 0;
+          double yaw = parts.length > 5 ? (double.tryParse(parts[5]) ?? 0) : 0;
+
+          _latestPacket = SensorPacket(
+            timestamp: DateTime.now(),
+            flexValues: [flex1, flex2, flex3, 0.0, 0.0],
+            fsrGripPressure: 0.0,
+            pitch: pitch,
+            roll: roll,
+            yaw: yaw,
+          );
+          _mockTimer?.cancel();
+          _lastError = null;
+          notifyListeners();
+          return;
+        }
+      }
+    } catch (e) {
+      // Fallback to binary parsing
+    }
+
     if (bytes.length < 20) {
       // Incomplete packet
       return;
