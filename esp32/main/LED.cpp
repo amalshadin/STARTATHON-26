@@ -1,6 +1,7 @@
 #include "LED.h"
 
 Ticker LED::blinker;
+Ticker LED::durationTimer;
 bool LED::state = false;
 
 void LED::begin() {
@@ -31,8 +32,14 @@ void LED::blink(uint32_t interval_ms) {
   blinker.attach_ms(interval_ms, toggle);
 }
 
+void LED::blinkFor(uint32_t interval_ms, uint32_t duration_ms) {
+  blink(interval_ms);
+  durationTimer.once_ms(duration_ms, LED::off);
+}
+
 void LED::stopBlink() {
   blinker.detach();
+  durationTimer.detach();
 }
 
 void LED::toggle() {
