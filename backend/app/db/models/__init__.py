@@ -38,6 +38,7 @@ from app.db.models.session import (
 from app.db.models.ai import (
     AIAnalysis,
     ClinicalReport,
+    PatientProgressSummary,
     AIAnalysisStatus,
     AgentType,
 )
@@ -53,5 +54,5 @@ __all__ = [
     # Session
     "GameSession", "GameResult", "SessionMetric", "SessionStatus",
     # AI
-    "AIAnalysis", "ClinicalReport", "AIAnalysisStatus", "AgentType",
+    "AIAnalysis", "ClinicalReport", "PatientProgressSummary", "AIAnalysisStatus", "AgentType",
 ]

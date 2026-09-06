@@ -9,16 +9,19 @@ import uuid
 from typing import Any, Dict, Optional
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import get_settings
 from app.db.database import SessionLocal
-from app.db.models.ai import AgentType, AIAnalysis, AIAnalysisStatus
+from app.db.models.ai import AgentType, AIAnalysis, AIAnalysisStatus, PatientProgressSummary
 from app.db.models.game import Game
 from app.db.models.profile import Patient
 from app.db.models.session import GameResult, GameSession, SessionMetric
-from app.schemas.ai import AIOverviewResponse
-from app.services.gemini_service import generate_gemini_rehabilitation_overview
+from app.schemas.ai import AIOverviewResponse, ProgressSummaryResponse
+from app.services.gemini_service import (
+    generate_gemini_rehabilitation_overview,
+    generate_multi_session_progress_summary,
+)
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -147,3 +150,83 @@ def format_ai_response(analysis: AIAnalysis) -> AIOverviewResponse:
         confidence=analysis.confidence,
         created_at=analysis.created_at,
     )
+
+
+def get_patient_session_batch(
+    db: Session,
+    patient_id: uuid.UUID,
+    limit: int = 10,
+) -> list[GameSession]:
+    """
+    Retrieves the most recent completed game sessions for a patient up to limit (default 10),
+    ordered newest to oldest. Eager-loads game, result, and session_metric.
+    """
+    stmt = (
+        select(GameSession)
+        .options(
+            joinedload(GameSession.game),
+            joinedload(GameSession.result),
+            joinedload(GameSession.metrics),
+        )
+        .where(GameSession.patient_id == patient_id)
+        .order_by(GameSession.started_at.desc())
+        .limit(limit)
+    )
+    return list(db.execute(stmt).scalars().unique().all())
+
+
+def get_latest_progress_summary(
+    db: Session,
+    patient_id: uuid.UUID,
+) -> Optional[PatientProgressSummary]:
+    """Retrieves the most recent multi-session progress summary for a patient."""
+    stmt = (
+        select(PatientProgressSummary)
+        .where(PatientProgressSummary.patient_id == patient_id)
+        .order_by(PatientProgressSummary.created_at.desc())
+        .limit(1)
+    )
+    return db.execute(stmt).scalar_one_or_none()
+
+
+async def generate_and_save_progress_summary(
+    db: Session,
+    patient_id: uuid.UUID,
+    limit: int = 10,
+) -> PatientProgressSummary:
+    """
+    Collects past 3 to 10 game sessions for a patient, passes the aggregated telemetry
+    to Gemini to generate a longitudinal progress overview, and saves it to patient_progress_summaries.
+    Raises ValueError if fewer than 3 sessions exist.
+    """
+    sessions = get_patient_session_batch(db, patient_id, limit=limit)
+    if len(sessions) < 3:
+        raise ValueError(
+            f"At least 3 completed game sessions are required to generate a progress summary. Current sessions: {len(sessions)}"
+        )
+
+    # Build telemetry payload for each session
+    batch_telemetry = []
+    for s in sessions:
+        batch_telemetry.append(build_session_telemetry_payload(db, s))
+
+    # Generate summary text with Gemini
+    summary_text = await generate_multi_session_progress_summary(batch_telemetry)
+
+    # Persist record in patient_progress_summaries
+    record = PatientProgressSummary(
+        patient_id=patient_id,
+        session_count=len(sessions),
+        session_ids=[str(s.id) for s in sessions],
+        summary=summary_text,
+        model_version=settings.gemini_model or "gemini-2.0-flash",
+    )
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    logger.info(
+        "Saved longitudinal progress summary %s for patient %s across %d sessions",
+        record.id, patient_id, len(sessions),
+    )
+    return record
+

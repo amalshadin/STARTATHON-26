@@ -146,3 +146,32 @@ class ClinicalReport(Base):
     # Relationships
     patient: Mapped["Patient"] = relationship("Patient", back_populates="clinical_reports")
     doctor: Mapped["Doctor"] = relationship("Doctor", back_populates="clinical_reports")
+
+
+class PatientProgressSummary(Base):
+    """
+    Stores longitudinal AI-generated rehabilitation progress summaries
+    derived from a batch of 3 to 10 past game sessions.
+    """
+    __tablename__ = "patient_progress_summaries"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    patient_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("patients.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    session_count: Mapped[int] = mapped_column(nullable=False)
+    session_ids: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    model_version: Mapped[str] = mapped_column(String(50), nullable=False, default="gemini-2.0-flash")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+
+    # Relationships
+    patient: Mapped["Patient"] = relationship("Patient")
+

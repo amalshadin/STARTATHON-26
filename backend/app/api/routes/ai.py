@@ -17,7 +17,7 @@ from app.db.database import get_db
 from app.db.models.ai import AIAnalysis, AIAnalysisStatus
 from app.db.models.profile import Patient
 from app.db.models.session import GameSession
-from app.schemas.ai import AIGenerateRequest, AIOverviewResponse
+from app.schemas.ai import AIGenerateRequest, AIOverviewResponse, ProgressSummaryResponse
 from app.services import ai_service
 
 router = APIRouter(tags=["AI Overview"])
@@ -136,4 +136,67 @@ def get_game_session_ai_overview(
             detail="No AI analysis found for this game session.",
         )
     return ai_service.format_ai_response(analysis)
+
+
+@router.get(
+    "/patients/{patient_id}/progress-summary",
+    response_model=ProgressSummaryResponse,
+    summary="Get multi-session AI progress summary across past 3 to 10 game sessions",
+    description=(
+        "Returns a longitudinal overview generated from the patient's past 3 to 10 game sessions. "
+        "Requires a minimum of 3 game sessions. If fewer than 3 sessions exist, returns "
+        "status 'insufficient_data'. Cached in database; pass ?regenerate=true to trigger fresh generation."
+    ),
+)
+async def get_patient_progress_summary(
+    patient_id: uuid.UUID,
+    regenerate: bool = Query(False, description="Force on-demand Gemini generation if true"),
+    db: Session = Depends(get_db),
+    patient: Patient = Depends(require_doctor_patient_access),
+) -> ProgressSummaryResponse:
+    # 1. Check existing sessions count for this patient (up to 10)
+    sessions = ai_service.get_patient_session_batch(db, patient_id, limit=10)
+    session_count = len(sessions)
+
+    if session_count < 3:
+        return ProgressSummaryResponse(
+            patient_id=patient_id,
+            status="insufficient_data",
+            session_count=session_count,
+            min_sessions_required=3,
+            summary=None,
+            session_ids=[s.id for s in sessions],
+            message=f"At least 3 completed game sessions are required to generate a progress summary (current: {session_count}).",
+        )
+
+    # 2. Check if a cached progress summary exists and regenerate is False
+    if not regenerate:
+        cached = ai_service.get_latest_progress_summary(db, patient_id)
+        if cached:
+            return ProgressSummaryResponse(
+                id=cached.id,
+                patient_id=cached.patient_id,
+                status="completed",
+                session_count=cached.session_count,
+                min_sessions_required=3,
+                summary=cached.summary,
+                session_ids=[uuid.UUID(sid) if isinstance(sid, str) else sid for sid in cached.session_ids] if cached.session_ids else [],
+                model_version=cached.model_version,
+                created_at=cached.created_at,
+            )
+
+    # 3. Generate fresh progress summary across past 3-10 sessions
+    record = await ai_service.generate_and_save_progress_summary(db, patient_id, limit=10)
+    return ProgressSummaryResponse(
+        id=record.id,
+        patient_id=record.patient_id,
+        status="completed",
+        session_count=record.session_count,
+        min_sessions_required=3,
+        summary=record.summary,
+        session_ids=[uuid.UUID(sid) if isinstance(sid, str) else sid for sid in record.session_ids] if record.session_ids else [],
+        model_version=record.model_version,
+        created_at=record.created_at,
+    )
+
 

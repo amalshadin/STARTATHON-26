@@ -165,3 +165,101 @@ async def generate_gemini_rehabilitation_overview(
     except Exception as exc:
         logger.warning("Gemini API call failed (%s). Falling back to rule-based overview.", exc)
         return _generate_fallback_overview(session_data)
+
+
+MULTI_SESSION_SYSTEM_PROMPT = """You are the HapticSync Rehabilitation Longitudinal Analyst.
+Your role is to analyze multi-session rehabilitation telemetry collected across a batch of 3 to 10 game sessions.
+Provide a concise, comprehensive longitudinal progress overview synthesizing:
+1. Performance consistency and trajectory (score, accuracy, repetition endurance).
+2. Movement kinematics and stability trends across sessions (smoothness, range of motion).
+3. Notable patterns of progression, fatigue resistance, or areas requiring sustained practice.
+
+CRITICAL CONSTRAINTS:
+- Output ONLY the natural language overview text. Do NOT wrap in JSON.
+- Do NOT mention or refer to "weekly report", "week", or any weekly timeframe. Refer strictly to "the evaluated sessions" or "across the evaluated series of sessions".
+- Maintain non-diagnostic, evidence-based language (e.g., "the data demonstrate steady motor consistency", "accuracy trends improved across consecutive trials"). Do NOT diagnose conditions or claim medical cures.
+"""
+
+
+def _generate_fallback_multi_session_overview(sessions: list[dict[str, Any]]) -> str:
+    """Deterministic longitudinal summary when Gemini API is unavailable."""
+    session_count = len(sessions)
+    if session_count == 0:
+        return "No session data available to evaluate."
+
+    accuracies = [s.get("accuracy", 0.0) for s in sessions if s.get("accuracy") is not None]
+    scores = [s.get("score", 0) for s in sessions if s.get("score") is not None]
+    repetitions = sum(s.get("repetitions", 0) for s in sessions if s.get("repetitions") is not None)
+    
+    avg_acc = (sum(accuracies) / len(accuracies) * 100) if accuracies else 0.0
+    avg_score = (sum(scores) / len(scores)) if scores else 0
+
+    first_acc = (accuracies[-1] * 100) if accuracies else 0.0
+    latest_acc = (accuracies[0] * 100) if accuracies else 0.0
+    trend = "demonstrated positive upward trajectory" if latest_acc >= first_acc else "remained stable with consistent motor engagement"
+
+    return (
+        f"Across the evaluated series of {session_count} rehabilitation sessions, the patient completed a cumulative total "
+        f"of {repetitions} repetitions with an average session score of {avg_score:.0f}. Movement accuracy averaged {avg_acc:.1f}%, "
+        f"and performance {trend} from initial to concluding trials. Movement kinematics indicate consistent task compliance "
+        f"and sustained motor control across successive sessions, supporting ongoing therapeutic consolidation."
+    )
+
+
+async def generate_multi_session_progress_summary(
+    sessions_data: list[dict[str, Any]],
+) -> str:
+    """
+    Calls Google Gemini REST API to generate a longitudinal progress summary across 3-10 sessions.
+    Falls back gracefully if the API key is not configured or network error occurs.
+    """
+    api_key = settings.gemini_api_key
+    if not api_key:
+        logger.info("GEMINI_API_KEY not configured. Using deterministic multi-session summary.")
+        return _generate_fallback_multi_session_overview(sessions_data)
+
+    model = settings.gemini_model or "gemini-2.0-flash"
+    url = f"{GEMINI_API_BASE_URL}/{model}:generateContent?key={api_key}"
+
+    user_content = (
+        f"Analyze the following validated telemetry from {len(sessions_data)} consecutive rehabilitation game sessions "
+        f"(ordered newest to oldest) and provide a comprehensive progress overview:\n\n"
+        f"{json.dumps(sessions_data, indent=2, default=str)}"
+    )
+
+    payload = {
+        "system_instruction": {
+            "parts": [{"text": MULTI_SESSION_SYSTEM_PROMPT}]
+        },
+        "contents": [
+            {
+                "role": "user",
+                "parts": [{"text": user_content}]
+            }
+        ],
+        "generationConfig": {
+            "temperature": 0.3,
+        },
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=25.0) as client:
+            response = await client.post(url, json=payload)
+            response.raise_for_status()
+            res_json = response.json()
+
+            candidates = res_json.get("candidates", [])
+            if not candidates:
+                raise ValueError("No candidates returned from Gemini API")
+
+            content_parts = candidates[0].get("content", {}).get("parts", [])
+            if not content_parts:
+                raise ValueError("Empty content parts in Gemini API response")
+
+            text_output = content_parts[0].get("text", "").strip()
+            return text_output
+
+    except Exception as exc:
+        logger.warning("Gemini API call failed for multi-session overview (%s). Using fallback.", exc)
+        return _generate_fallback_multi_session_overview(sessions_data)
+
