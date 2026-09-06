@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../providers/doctor_portal_provider.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../../models/doctor/patient_record.dart';
 import 'package:intl/intl.dart';
 
@@ -183,11 +184,12 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
 
   Widget _buildSessionCard(dynamic session) {
     // Attempt to parse standard fields out of the dynamic map
-    final dateStr = session['date'] ?? session['created_at'];
+    final dateStr = session['date'] ?? session['created_at'] ?? session['start_time'] ?? session['timestamp'];
     final date = dateStr != null ? DateTime.tryParse(dateStr) : null;
-    final gameName = session['game_name'] ?? 'Therapy Session';
+    final gameName = session['game_name'] ?? session['game_id'] ?? 'Game Session';
     final score = session['score'] ?? 0;
     final accuracy = session['accuracy'] ?? 0.0;
+    final sessionId = session['id'];
     
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -218,14 +220,94 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                 ),
                 const SizedBox(width: 16),
                 Text(
-                  'Accuracy: ${accuracy}%',
+                  'Accuracy: ${accuracy is double ? accuracy.toStringAsFixed(1) : accuracy}%',
                   style: const TextStyle(color: Color(0xFF00E5FF), fontWeight: FontWeight.w600),
                 ),
               ],
             )
           ],
         ),
+        trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
+        onTap: () {
+          if (sessionId != null) {
+            _showAiOverviewDialog(sessionId);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Session ID is missing.')),
+            );
+          }
+        },
       ),
+    );
+  }
+
+  void _showAiOverviewDialog(String gameSessionId) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          backgroundColor: const Color(0xFF161F36),
+          title: const Text('AI Overview', style: TextStyle(color: Colors.white)),
+          content: FutureBuilder<Map<String, dynamic>>(
+            future: context.read<DoctorPortalProvider>().getGameSessionAiOverview(gameSessionId),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox(
+                  height: 100,
+                  child: Center(child: CircularProgressIndicator(color: Color(0xFF00E5FF))),
+                );
+              }
+              if (snapshot.hasError) {
+                return Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red));
+              }
+
+              final data = snapshot.data;
+              if (data == null) {
+                return const Text('No AI overview available.', style: TextStyle(color: Colors.white54));
+              }
+
+              final overview = data['overview'] ?? 'No overview available.';
+              final focusAreas = (data['focus_areas'] as List<dynamic>?) ?? [];
+              final status = data['status'] ?? 'Unknown';
+
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Status: $status', style: const TextStyle(color: Color(0xFF00E5FF), fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+                    const Text('Overview:', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    MarkdownBody(
+                      data: overview,
+                      styleSheet: MarkdownStyleSheet(
+                        p: const TextStyle(color: Colors.white70),
+                        h1: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        h2: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        h3: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        listBullet: const TextStyle(color: Colors.white70),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (focusAreas.isNotEmpty) ...[
+                      const Text('Focus Areas:', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      ...focusAreas.map((area) => Text('• $area', style: const TextStyle(color: Colors.white70))),
+                    ],
+                  ],
+                ),
+              );
+            },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Close', style: TextStyle(color: Color(0xFF00E5FF))),
+            ),
+          ],
+        );
+      },
     );
   }
 

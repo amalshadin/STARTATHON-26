@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import 'core/design_tokens.dart';
 import 'providers/ble_telemetry_provider.dart';
 import 'providers/calibration_provider.dart';

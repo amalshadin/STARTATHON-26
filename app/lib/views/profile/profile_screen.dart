@@ -9,7 +9,10 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Therapist Summary', style: DesignTokens.headingStyle),
+        title: const Text(
+          'Therapist Summary',
+          style: DesignTokens.headingStyle,
+        ),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -29,21 +32,61 @@ class ProfileScreen extends StatelessWidget {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
-                  
+
                   final data = snapshot.data ?? {};
-                  final name = data['name'] ?? '${data['first_name'] ?? 'Unknown'} ${data['last_name'] ?? 'Patient'}';
-                  final doctor = data['doctor_name'] ?? data['doctor'] ?? 'Unknown Doctor';
-                  
+
+                  // Extract patient name with high tolerance
+                  final firstName =
+                      data['first_name'] ??
+                      data['firstName'] ??
+                      data['given_name'];
+                  final lastName =
+                      data['last_name'] ??
+                      data['lastName'] ??
+                      data['family_name'];
+                  String name = data['full_name'] ?? '';
+                  if (name.isEmpty && firstName != null) {
+                    name = '$firstName ${lastName ?? ''}'.trim();
+                  }
+                  if (name.isEmpty) {
+                    name = 'Raw: $data'; // Debug fallback
+                  }
+
+                  // Extract doctor name with high tolerance
+                  dynamic docData =
+                      data['doctor'] ??
+                      data['assigned_doctor'] ??
+                      data['therapist'];
+                  String doctorName =
+                      data['doctor_name'] ?? data['doctorName'] ?? '';
+
+                  if (doctorName.isEmpty && docData is Map) {
+                    final docFirst =
+                        docData['first_name'] ?? docData['firstName'];
+                    final docLast = docData['last_name'] ?? docData['lastName'];
+                    doctorName =
+                        docData['name'] ??
+                        (docFirst != null ? '$docFirst $docLast' : '');
+                  }
+
+                  if (doctorName.isEmpty) {
+                    doctorName = docData is String ? docData : 'Unknown';
+                  }
+
                   return Column(
                     children: [
                       Text(
                         name,
                         textAlign: TextAlign.center,
-                        style: DesignTokens.headingStyle,
+                        style: DesignTokens.headingStyle.copyWith(
+                          fontSize: name.startsWith('Raw:')
+                              ? 14
+                              : 24, // Smaller font if it's raw JSON
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Dr. $doctor',
+                        'Dr. $doctorName',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           fontSize: 16,
@@ -57,7 +100,10 @@ class ProfileScreen extends StatelessWidget {
               ),
               const SizedBox(height: 32),
               const Center(
-                child: Text('No summary data available.', style: DesignTokens.bodyStyle),
+                child: Text(
+                  'No summary data available.',
+                  style: DesignTokens.bodyStyle,
+                ),
               ),
             ],
           ),

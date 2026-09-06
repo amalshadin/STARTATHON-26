@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
@@ -100,26 +99,73 @@ class BleTelemetryProvider extends ChangeNotifier {
       notifyListeners();
     });
 
-    _sensorSub = BleService().sensorStream.listen((rawJson) {
-      processBleJson(rawJson);
+    _sensorSub = BleService().sensorStream.listen((bytes) {
+      processBleBytes(bytes);
     });
   }
 
-  void processBleJson(String rawJson) {
+  void processBleBytes(List<int> bytes) {
+    if (bytes.isEmpty) return;
+
     try {
-      final Map<String, dynamic> data = jsonDecode(rawJson);
-      
-      List<double> flexAngles = [0.0, 0.0, 0.0, 0.0, 0.0];
-      if (data.containsKey('f') && data['f'] is List) {
-        final List<dynamic> fList = data['f'];
-        for (int i = 0; i < fList.length && i < 3; i++) {
-          flexAngles[i] = (fList[i] as num).toDouble();
+      // Attempt to parse as comma-separated string first
+      String str = String.fromCharCodes(bytes).replaceAll('\x00', '').trim();
+      if (str.contains(',') && RegExp(r'^[0-9\., \-]+$').hasMatch(str)) {
+        List<String> parts = str.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+        if (parts.length >= 3) {
+          double flex1 = double.tryParse(parts[0]) ?? 0;
+          double flex2 = double.tryParse(parts[1]) ?? 0;
+          double flex3 = double.tryParse(parts[2]) ?? 0;
+          
+          double pitch = parts.length > 3 ? (double.tryParse(parts[3]) ?? 0) : 0;
+          double roll = parts.length > 4 ? (double.tryParse(parts[4]) ?? 0) : 0;
+          double yaw = parts.length > 5 ? (double.tryParse(parts[5]) ?? 0) : 0;
+
+          _latestPacket = SensorPacket(
+            timestamp: DateTime.now(),
+            flexValues: [flex1, flex2, flex3, 0.0, 0.0],
+            fsrGripPressure: 0.0,
+            pitch: pitch,
+            roll: roll,
+            yaw: yaw,
+          );
+          _mockTimer?.cancel();
+          _lastError = null;
+          notifyListeners();
+          return;
         }
       }
+    } catch (e) {
+      // Fallback to binary parsing
+    }
 
-      double pitch = (data['x'] ?? data['pitch'] ?? 0.0).toDouble();
-      double roll = (data['y'] ?? data['roll'] ?? 0.0).toDouble();
-      double yaw = (data['z'] ?? data['yaw'] ?? 0.0).toDouble();
+    if (bytes.length < 20) {
+      // Incomplete packet
+      return;
+    }
+
+    try {
+      final byteData = ByteData.sublistView(Uint8List.fromList(bytes));
+      
+      // MPU data is sent first (14 bytes)
+      int accX = byteData.getInt16(0, Endian.little);
+      int accY = byteData.getInt16(2, Endian.little);
+      int accZ = byteData.getInt16(4, Endian.little);
+      int tempRaw = byteData.getInt16(6, Endian.little);
+      int gyroX = byteData.getInt16(8, Endian.little);
+      int gyroY = byteData.getInt16(10, Endian.little);
+      int gyroZ = byteData.getInt16(12, Endian.little);
+
+      // FlexData is sent second (6 bytes)
+      int flex1 = byteData.getUint16(14, Endian.little);
+      int flex2 = byteData.getUint16(16, Endian.little);
+      int flex3 = byteData.getUint16(18, Endian.little);
+
+      List<double> flexAngles = [flex1.toDouble(), flex2.toDouble(), flex3.toDouble(), 0.0, 0.0];
+
+      double pitch = accX.toDouble();
+      double roll = accY.toDouble();
+      double yaw = gyroZ.toDouble();
 
       _latestPacket = SensorPacket(
         timestamp: DateTime.now(),
@@ -132,10 +178,11 @@ class BleTelemetryProvider extends ChangeNotifier {
       
       // Enforce switching off the mock timer once live data flows
       _mockTimer?.cancel();
-      
+      _lastError = null; // Clear any previous errors on success
       notifyListeners();
     } catch (e) {
-      // Silently discard malformed JSON frames
+      _lastError = 'Binary parse error. Check struct packing.';
+      notifyListeners();
     }
   }
 

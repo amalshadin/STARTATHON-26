@@ -5,9 +5,9 @@
 
 FLEXData FLEXManager::read() {
   FLEXData data;
-  data.flex1 = analogRead(PIN::flexPin1);
-  data.flex2 = analogRead(PIN::flexPin2);
-  data.flex3 = analogRead(PIN::flexPin3);
+  data.flex1 = analogRead(::PIN::flexPin1);
+  data.flex2 = analogRead(::PIN::flexPin2);
+  data.flex3 = analogRead(::PIN::flexPin3);
   return data;
 }
 
