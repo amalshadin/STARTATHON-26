@@ -25,10 +25,10 @@ PATH = r"C:\Users\Bharath\AppData\Local\Programs\Ollama\ollama.exe"
 MODEL = "qwen3.5:9b"
 
 # Keep the Python application talking to Ollama locally.
-OLLAMA_URL = "http://127.0.0.1:11434"
+OLLAMA_URL = "http://127.0.0.1:8000"
 
 # If this script has to start Ollama itself, request LAN binding.
-OLLAMA_HOST = "0.0.0.0:11434"
+OLLAMA_HOST = "0.0.0.0:8000"
 
 OLLAMA_TIMEOUT_SECONDS = 10
 GENERATION_TIMEOUT_SECONDS = 180
