@@ -31,9 +31,9 @@ class CalibrationData {
   factory CalibrationData.defaultValues() {
     return CalibrationData(
       flexMin: [0.0, 0.0, 0.0, 0.0, 0.0],
-      flexMax: [1023.0, 1023.0, 1023.0, 1023.0, 1023.0],
+      flexMax: [4095.0, 4095.0, 4095.0, 4095.0, 4095.0],
       fsrMin: 0.0,
-      fsrMax: 1023.0,
+      fsrMax: 4095.0,
       accXOffset: 0.0,
       accYOffset: 0.0,
       accZOffset: 0.0,

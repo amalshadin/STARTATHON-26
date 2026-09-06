@@ -369,7 +369,9 @@ class _CargoCraneScreenState extends State<CargoCraneScreen>
     _sessionPackets.add(packet);
 
     // 1. Posture / Ergonomics Check
-    bool isOverTilted = packet.pitch.abs() > 45 || packet.roll.abs() > 50;
+    double correctedPitch = calProvider.getCorrectedPitch(packet.pitch);
+    double correctedRoll = calProvider.getCorrectedRoll(packet.roll);
+    bool isOverTilted = correctedPitch.abs() > 45 || correctedRoll.abs() > 50;
     if (!isOverTilted) {
       _safeFrames++;
       _overTiltTimer = 0.0; // Reset if posture normalizes
@@ -385,8 +387,9 @@ class _CargoCraneScreenState extends State<CargoCraneScreen>
     // If not using touch drag, we map IMU pitch/roll to movement
     if (!_debugPinch && bleProvider.isConnected) {
       // Pitch (up/down) -> Y axis. Roll (left/right) -> X axis.
-      double dx = packet.roll * 5.0 * dt;
-      double dy = -packet.pitch * 5.0 * dt; // Invert pitch usually
+      // Scale down significantly because raw MPU values are large (1g = 16384)
+      double dx = correctedRoll * 0.12 * dt;
+      double dy = -correctedPitch * 0.12 * dt; // Invert pitch usually
 
       _cranePosition = Offset(
         (_cranePosition.dx + dx).clamp(0.0, _screenSize.width),

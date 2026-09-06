@@ -124,22 +124,25 @@ class _SpaceGameScreenState extends State<SpaceGameScreen>
 
     // 1. Steering & Smoothness Tracking
     if (bleProvider.isConnected) {
-      double dx = packet.roll * 6.0 * dt;
-      double dy = -packet.pitch * 6.0 * dt;
+      double correctedPitch = calProvider.getCorrectedPitch(packet.pitch);
+      double correctedRoll = calProvider.getCorrectedRoll(packet.roll);
+      // Scale down significantly because raw MPU values are large (1g = 16384)
+      double dx = correctedRoll * 0.15 * dt;
+      double dy = -correctedPitch * 0.15 * dt;
 
       _shipPosition = Offset(
         (_shipPosition.dx + dx).clamp(0.0, _screenSize.width),
         (_shipPosition.dy + dy).clamp(0.0, _screenSize.height),
       );
 
-      double deltaP = (packet.pitch - _lastPitch).abs();
-      double deltaR = (packet.roll - _lastRoll).abs();
+      double deltaP = (correctedPitch - _lastPitch).abs();
+      double deltaR = (correctedRoll - _lastRoll).abs();
       if (deltaP > 0.1 || deltaR > 0.1) {
         _totalPitchRollDelta += (deltaP + deltaR);
         _framesWithMovement++;
       }
-      _lastPitch = packet.pitch;
-      _lastRoll = packet.roll;
+      _lastPitch = correctedPitch;
+      _lastRoll = correctedRoll;
     }
 
     // 2. Read Inputs (Hardware or Debug)

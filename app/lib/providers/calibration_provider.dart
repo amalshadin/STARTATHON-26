@@ -30,7 +30,7 @@ class CalibrationProvider extends ChangeNotifier {
           flexMin: List<double>.from((data['flex_min'] as List).map((e) => e.toDouble())),
           flexMax: List<double>.from((data['flex_max'] as List).map((e) => e.toDouble())),
           fsrMin: data['fsr_min']?.toDouble() ?? 0.0,
-          fsrMax: data['fsr_max']?.toDouble() ?? 1023.0,
+          fsrMax: data['fsr_max']?.toDouble() ?? 4095.0,
           accXOffset: 0.0,
           accYOffset: 0.0,
           accZOffset: 0.0,
@@ -134,7 +134,7 @@ class CalibrationProvider extends ChangeNotifier {
     double min = _calibrationData.flexMin[fingerIndex];
     double max = _calibrationData.flexMax[fingerIndex];
     
-    if (max <= min) return 0.0;
+    if ((max - min).abs() < 10) return 0.0;
     
     double normalized = (rawValue - min) / (max - min);
     return normalized.clamp(0.0, 1.0);
@@ -145,7 +145,7 @@ class CalibrationProvider extends ChangeNotifier {
      double min = _calibrationData.fsrMin;
      double max = _calibrationData.fsrMax;
      
-     if (max <= min) return 0.0;
+     if ((max - min).abs() < 10) return 0.0;
      
      double normalized = (rawValue - min) / (max - min);
      return normalized.clamp(0.0, 1.0);

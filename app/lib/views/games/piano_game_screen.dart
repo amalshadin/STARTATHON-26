@@ -172,8 +172,9 @@ class _PianoGameScreenState extends State<PianoGameScreen>
       }
 
       bool isHolding = flexValue >= _settings.threshold;
+      // Make it slightly more forgiving (0.75 instead of 0.6)
       bool isRelaxed =
-          flexValue < (_settings.threshold * 0.6); // Release threshold
+          flexValue < (_settings.threshold * 0.75); // Release threshold
 
       if (isRelaxed) {
         _laneReadyToHit[note.lane] = true;

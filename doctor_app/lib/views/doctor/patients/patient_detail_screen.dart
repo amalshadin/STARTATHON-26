@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../providers/doctor_portal_provider.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../../models/doctor/patient_record.dart';
 import 'package:intl/intl.dart';
 
@@ -183,7 +184,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
 
   Widget _buildSessionCard(dynamic session) {
     // Attempt to parse standard fields out of the dynamic map
-    final dateStr = session['date'] ?? session['created_at'];
+    final dateStr = session['date'] ?? session['created_at'] ?? session['start_time'] ?? session['timestamp'];
     final date = dateStr != null ? DateTime.tryParse(dateStr) : null;
     final gameName = session['game_name'] ?? session['game_id'] ?? 'Game Session';
     final score = session['score'] ?? 0;
@@ -278,7 +279,16 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                     const SizedBox(height: 16),
                     const Text('Overview:', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
-                    Text(overview, style: const TextStyle(color: Colors.white70)),
+                    MarkdownBody(
+                      data: overview,
+                      styleSheet: MarkdownStyleSheet(
+                        p: const TextStyle(color: Colors.white70),
+                        h1: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        h2: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        h3: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        listBullet: const TextStyle(color: Colors.white70),
+                      ),
+                    ),
                     const SizedBox(height: 16),
                     if (focusAreas.isNotEmpty) ...[
                       const Text('Focus Areas:', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),

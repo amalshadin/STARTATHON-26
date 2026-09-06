@@ -131,4 +131,8 @@ class DoctorPortalProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  Future<Map<String, dynamic>> getGameSessionAiOverview(String gameSessionId) {
+    return _apiService.getGameSessionAiOverview(gameSessionId);
+  }
 }

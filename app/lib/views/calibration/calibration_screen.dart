@@ -158,75 +158,89 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
   }
 
   Widget _buildStage1(BleTelemetryProvider ble, CalibrationProvider cal) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Icon(Icons.back_hand, size: 80, color: Colors.white54),
-        const SizedBox(height: 24),
-        const Text(
-          'Rest & Zero',
-          style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          'Rest your hand flat on the table in a comfortable neutral position. Keep still.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 16, color: Colors.white70),
-        ),
-        const SizedBox(height: 40),
-        
-        ...List.generate(3, (index) => _buildLiveBar('Finger ${index + 1} (${ble.latestPacket.flexValues[index].toInt()})', ble.latestPacket.flexValues[index] / 65535.0, Colors.blue)),
-        const SizedBox(height: 40),
-
-        if (_isRecording)
-          _buildCountdown()
-        else
-          ElevatedButton(
-            onPressed: () => _startRecording(ble, cal, 1),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: DesignTokens.primaryColor,
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-            ),
-            child: const Text('Start Baseline', style: TextStyle(fontSize: 18, color: Colors.white)),
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.back_hand, size: 80, color: Colors.white54),
+          const SizedBox(height: 24),
+          const Text(
+            'Rest & Zero',
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
           ),
-      ],
-    ).animate().fadeIn(duration: 500.ms);
+          const SizedBox(height: 16),
+          const Text(
+            'Rest your hand flat on the table in a comfortable neutral position. Keep still.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16, color: Colors.white70),
+          ),
+          const SizedBox(height: 24),
+          
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildImuGauge('Pitch', ble.latestPacket.pitch, Colors.purpleAccent),
+              _buildImuGauge('Roll', ble.latestPacket.roll, Colors.deepPurpleAccent),
+              _buildImuGauge('Yaw', ble.latestPacket.yaw, Colors.indigoAccent),
+            ],
+          ),
+          const SizedBox(height: 24),
+          
+          ...List.generate(3, (index) => _buildLiveBar('Finger ${index + 1} (${ble.latestPacket.flexValues[index].toInt()})', ble.latestPacket.flexValues[index] / 4095.0, Colors.blue)),
+          const SizedBox(height: 40),
+
+          if (_isRecording)
+            _buildCountdown()
+          else
+            ElevatedButton(
+              onPressed: () => _startRecording(ble, cal, 1),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: DesignTokens.primaryColor,
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+              ),
+              child: const Text('Start Baseline', style: TextStyle(fontSize: 18, color: Colors.white)),
+            ),
+        ],
+      ).animate().fadeIn(duration: 500.ms),
+    );
   }
 
   Widget _buildStage2(BleTelemetryProvider ble, CalibrationProvider cal) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Icon(Icons.sports_mma, size: 80, color: Colors.white54),
-        const SizedBox(height: 24),
-        const Text(
-          'Active Flexion',
-          style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          'Slowly close your hand or curl your fingers as far as comfortable. Squeeze gently.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 16, color: Colors.white70),
-        ),
-        const SizedBox(height: 40),
-        
-        ...List.generate(3, (index) => _buildLiveBar('Finger ${index + 1} (${ble.latestPacket.flexValues[index].toInt()})', ble.latestPacket.flexValues[index] / 65535.0, Colors.green)),
-        const SizedBox(height: 40),
-
-        if (_isRecording)
-          _buildCountdown()
-        else
-          ElevatedButton(
-            onPressed: () => _startRecording(ble, cal, 2),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: DesignTokens.primaryColor,
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-            ),
-            child: const Text('Start Flexion', style: TextStyle(fontSize: 18, color: Colors.white)),
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.sports_mma, size: 80, color: Colors.white54),
+          const SizedBox(height: 24),
+          const Text(
+            'Active Flexion',
+            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
           ),
-      ],
-    ).animate().fadeIn(duration: 500.ms);
+          const SizedBox(height: 16),
+          const Text(
+            'Slowly close your hand or curl your fingers as far as comfortable. Squeeze gently.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 16, color: Colors.white70),
+          ),
+          const SizedBox(height: 40),
+          
+          ...List.generate(3, (index) => _buildLiveBar('Finger ${index + 1} (${ble.latestPacket.flexValues[index].toInt()})', ble.latestPacket.flexValues[index] / 4095.0, Colors.green)),
+          const SizedBox(height: 40),
+
+          if (_isRecording)
+            _buildCountdown()
+          else
+            ElevatedButton(
+              onPressed: () => _startRecording(ble, cal, 2),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: DesignTokens.primaryColor,
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+              ),
+              child: const Text('Start Flexion', style: TextStyle(fontSize: 18, color: Colors.white)),
+            ),
+        ],
+      ).animate().fadeIn(duration: 500.ms),
+    );
   }
 
   Widget _buildStage3(CalibrationProvider cal) {
@@ -239,63 +253,65 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
       }
     }
 
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(isValid ? Icons.check_circle_outline : Icons.warning_amber_rounded, 
-             size: 80, color: isValid ? Colors.green : Colors.orange),
-        const SizedBox(height: 24),
-        Text(
-          isValid ? 'Calibration Successful' : 'Low Movement Detected',
-          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        const SizedBox(height: 16),
-        if (!isValid)
-          const Text(
-            'Low movement detected on one or more fingers. Check glove fit or adjust sensor alignment.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16, color: Colors.orangeAccent),
-          )
-        else
-          const Text(
-            'Your dynamic range and IMU offsets have been configured successfully.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 16, color: Colors.white70),
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(isValid ? Icons.check_circle_outline : Icons.warning_amber_rounded, 
+               size: 80, color: isValid ? Colors.green : Colors.orange),
+          const SizedBox(height: 24),
+          Text(
+            isValid ? 'Calibration Successful' : 'Low Movement Detected',
+            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
           ),
-        const SizedBox(height: 40),
-
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            OutlinedButton(
-              onPressed: () {
-                setState(() {
-                  _currentStage = 1;
-                });
-              },
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white,
-                side: const BorderSide(color: Colors.white54),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-              ),
-              child: const Text('Recalibrate'),
+          const SizedBox(height: 16),
+          if (!isValid)
+            const Text(
+              'Low movement detected on one or more fingers. Check glove fit or adjust sensor alignment.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, color: Colors.orangeAccent),
+            )
+          else
+            const Text(
+              'Your dynamic range and IMU offsets have been configured successfully.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, color: Colors.white70),
             ),
-            const SizedBox(width: 16),
-            ElevatedButton(
-              onPressed: () {
-                cal.saveAndUploadCalibration();
-                Navigator.of(context).pop();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isValid ? DesignTokens.successColor : DesignTokens.primaryColor,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          const SizedBox(height: 40),
+  
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              OutlinedButton(
+                onPressed: () {
+                  setState(() {
+                    _currentStage = 1;
+                  });
+                },
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  side: const BorderSide(color: Colors.white54),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                ),
+                child: const Text('Recalibrate'),
               ),
-              child: const Text('Save & Continue', style: TextStyle(color: Colors.white)),
-            ),
-          ],
-        ),
-      ],
-    ).animate().fadeIn(duration: 500.ms);
+              const SizedBox(width: 16),
+              ElevatedButton(
+                onPressed: () {
+                  cal.saveAndUploadCalibration();
+                  Navigator.of(context).pop();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isValid ? DesignTokens.successColor : DesignTokens.primaryColor,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                ),
+                child: const Text('Save & Continue', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        ],
+      ).animate().fadeIn(duration: 500.ms),
+    );
   }
 
   Widget _buildLiveBar(String label, double value, Color color) {
@@ -317,6 +333,30 @@ class _CalibrationScreenState extends State<CalibrationScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildImuGauge(String label, double value, Color color) {
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 16)),
+        const SizedBox(height: 8),
+        Container(
+          width: 80,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Center(
+            child: Text(
+              value.toStringAsFixed(1),
+              style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+      ],
     );
   }
 

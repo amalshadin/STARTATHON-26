@@ -9,6 +9,7 @@ import 'dart:math' as math;
 import 'piano_game_screen.dart';
 import 'cargo_crane_screen.dart';
 import 'space_game_screen.dart';
+import 'car_race_screen.dart';
 
 class GameArenaScreen extends StatelessWidget {
   const GameArenaScreen({super.key});
@@ -61,10 +62,20 @@ class GameArenaScreen extends StatelessWidget {
                   MaterialPageRoute(builder: (_) => const SpaceGameScreen()),
                 ),
               ),
+              const SizedBox(height: 16),
+              _buildGameCard(
+                context,
+                'Neon Racer',
+                'MPU Wrist Steering & Reflexes',
+                Icons.directions_car,
+                () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const CarRaceScreen()),
+                ),
+              ),
 
               const SizedBox(height: 40),
               const Text(
-                'Live Glove Telemetry (Debug)',
+                'Live Glove Telemetry',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               Consumer2<BleTelemetryProvider, CalibrationProvider>(
