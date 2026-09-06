@@ -148,20 +148,19 @@ class BleTelemetryProvider extends ChangeNotifier {
     try {
       final byteData = ByteData.sublistView(Uint8List.fromList(bytes));
       
-      // ESP32 uses Little Endian by default
-      // FlexData (3x uint16_t = 6 bytes)
-      int flex1 = byteData.getUint16(0, Endian.little);
-      int flex2 = byteData.getUint16(2, Endian.little);
-      int flex3 = byteData.getUint16(4, Endian.little);
-      
-      // MpuData (7x int16_t = 14 bytes)
-      int accX = byteData.getInt16(6, Endian.little);
-      int accY = byteData.getInt16(8, Endian.little);
-      // int accZ = byteData.getInt16(10, Endian.little);
-      // int tempRaw = byteData.getInt16(12, Endian.little);
-      // int gyroX = byteData.getInt16(14, Endian.little);
-      // int gyroY = byteData.getInt16(16, Endian.little);
-      int gyroZ = byteData.getInt16(18, Endian.little);
+      // MPU data is sent first (14 bytes)
+      int accX = byteData.getInt16(0, Endian.little);
+      int accY = byteData.getInt16(2, Endian.little);
+      int accZ = byteData.getInt16(4, Endian.little);
+      int tempRaw = byteData.getInt16(6, Endian.little);
+      int gyroX = byteData.getInt16(8, Endian.little);
+      int gyroY = byteData.getInt16(10, Endian.little);
+      int gyroZ = byteData.getInt16(12, Endian.little);
+
+      // FlexData is sent second (6 bytes)
+      int flex1 = byteData.getUint16(14, Endian.little);
+      int flex2 = byteData.getUint16(16, Endian.little);
+      int flex3 = byteData.getUint16(18, Endian.little);
 
       List<double> flexAngles = [flex1.toDouble(), flex2.toDouble(), flex3.toDouble(), 0.0, 0.0];
 
