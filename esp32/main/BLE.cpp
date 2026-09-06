@@ -18,6 +18,16 @@ class MyCallbacks : public BLECharacteristicCallbacks {
   }
 };
 
+class MyServerCallbacks : public BLEServerCallbacks {
+  void onConnect(BLEServer *pServer) {
+    Serial.println("Device connected!");
+  }
+
+  void onDisconnect(BLEServer *pServer) {
+    Serial.println("Device disconnected!");
+  }
+};
+
 BLECharacteristic *characteristic;
 
 void BLEManager::begin() {
@@ -25,6 +35,7 @@ void BLEManager::begin() {
   BLEDevice::init("ESP32-BLE-Test");
 
   BLEServer *server = BLEDevice::createServer();
+  server->setCallbacks(new MyServerCallbacks());
 
   BLEService *service = server->createService(SERVICE_UUID);
 
