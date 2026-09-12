@@ -15,7 +15,8 @@ void setup() {
   ble.begin();
   mpu.begin();
   LED::begin();
-  LED::blinkFor(200, 1000, [](){ LED::blink(1000); });
+  LED::blink(1000); // Sets background blink
+  LED::blinkFor(200, 1000); // Interrupts it for 1s
 }
 
 void loop() {
