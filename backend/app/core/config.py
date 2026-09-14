@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     pin_expiry_hours: int = 24
     pin_max_attempts: int = 5
 
+    # ── Gemini AI ─────────────────────────────────────────────────────────────
+    gemini_api_key: Optional[str] = Field(None, validation_alias="gemini_api_key")
+    gemini_model: str = Field("gemini-2.0-flash", validation_alias="gemini_model")
+
     # ── Computed Properties ───────────────────────────────────────────────────
 
     @property

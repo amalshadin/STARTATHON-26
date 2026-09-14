@@ -178,8 +178,8 @@ class Patient(Base):
     doctor_patients: Mapped[List["DoctorPatient"]] = relationship(
         "DoctorPatient", back_populates="patient", foreign_keys="DoctorPatient.patient_id"
     )
-    therapy_sessions: Mapped[List["TherapySession"]] = relationship(
-        "TherapySession", back_populates="patient"
+    game_sessions: Mapped[List["GameSession"]] = relationship(
+        "GameSession", back_populates="patient", cascade="all, delete-orphan"
     )
     patient_devices: Mapped[List["PatientDevice"]] = relationship(
         "PatientDevice", back_populates="patient"

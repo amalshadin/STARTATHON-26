@@ -21,9 +21,8 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
     try {
       final response = await _apiService.verifyPin(_emailController.text, _pinController.text);
-      // Expected: { magic_link: string, message: string } (Extract token for now we assume magic_link has token)
-      String token = response['magic_link'] ?? 'dummy_token';
-      // For demo, patientId should be returned or we use a hardcoded UUID
+      // Extract access_token or token from verify-pin response
+      String token = response['access_token'] ?? response['token'] ?? response['magic_link'] ?? 'dummy_token';
       String patientId = response['patient_id'] ?? '00000000-0000-0000-0000-000000000000';
       
       _apiService.setAuthData(token, patientId);

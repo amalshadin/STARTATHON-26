@@ -71,9 +71,6 @@ class Device(Base):
     calibrations: Mapped[List["DeviceCalibration"]] = relationship(
         "DeviceCalibration", back_populates="device"
     )
-    therapy_sessions: Mapped[List["TherapySession"]] = relationship(
-        "TherapySession", back_populates="device"
-    )
     game_sessions: Mapped[List["GameSession"]] = relationship(
         "GameSession", back_populates="device"
     )

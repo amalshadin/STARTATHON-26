@@ -12,10 +12,12 @@ Payload payload;
 void setup() {
   Serial.begin(115200);
 
+  ble.setDeviceName("ESP32-CS-ROVER");
   ble.begin();
   mpu.begin();
   LED::begin();
-  LED::blink(500);
+  LED::blink(1000); // Sets background blink
+  LED::blinkFor(200, 1000); // Interrupts it for 1s
 }
 
 void loop() {

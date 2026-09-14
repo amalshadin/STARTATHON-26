@@ -18,65 +18,14 @@ from typing import List, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from app.db.models import Game, GameResult, GameSession, SessionMetric, TherapySession
+from app.db.models import Game, GameResult, GameSession, SessionMetric
 from app.schemas.session import (
     GameResultCreate,
     GameSessionCreate,
     SessionMetricCreate,
-    TherapySessionCreate,
 )
 
 logger = logging.getLogger(__name__)
-
-
-# ── Therapy Sessions ──────────────────────────────────────────────────────────
-
-def upsert_therapy_session(
-    db: Session, data: TherapySessionCreate
-) -> tuple[TherapySession, bool]:
-    """
-    Idempotent therapy session creation.
-    Returns (session, was_created). was_created=False means the session
-    already existed (retry scenario).
-    """
-    existing = db.get(TherapySession, data.id)
-    if existing:
-        logger.debug("Idempotent replay: therapy_session %s already exists", data.id)
-        return existing, False
-
-    session = TherapySession(
-        id=data.id,
-        patient_id=data.patient_id,
-        device_id=data.device_id,
-        started_at=data.started_at,
-        ended_at=data.ended_at,
-        duration_s=data.duration_s,
-        status=data.status,
-        notes=data.notes,
-    )
-    db.add(session)
-    db.commit()
-    db.refresh(session)
-    return session, True
-
-
-def get_therapy_session(
-    db: Session, session_id: uuid.UUID
-) -> Optional[TherapySession]:
-    return db.get(TherapySession, session_id)
-
-
-def get_patient_therapy_sessions(
-    db: Session, patient_id: uuid.UUID, limit: int = 50
-) -> List[TherapySession]:
-    """Return recent therapy sessions for a patient, newest first."""
-    stmt = (
-        select(TherapySession)
-        .where(TherapySession.patient_id == patient_id)
-        .order_by(TherapySession.started_at.desc())
-        .limit(limit)
-    )
-    return list(db.execute(stmt).scalars().all())
 
 
 # ── Game Sessions ─────────────────────────────────────────────────────────────
@@ -92,7 +41,7 @@ def upsert_game_session(
 
     session = GameSession(
         id=data.id,
-        therapy_session_id=data.therapy_session_id,
+        patient_id=data.patient_id,
         game_id=data.game_id,
         device_id=data.device_id,
         calibration_id=data.calibration_id,
@@ -113,6 +62,19 @@ def get_game_session(
     db: Session, game_session_id: uuid.UUID
 ) -> Optional[GameSession]:
     return db.get(GameSession, game_session_id)
+
+
+def get_patient_game_sessions(
+    db: Session, patient_id: uuid.UUID, limit: int = 50
+) -> List[GameSession]:
+    """Return recent game sessions for a patient, newest first."""
+    stmt = (
+        select(GameSession)
+        .where(GameSession.patient_id == patient_id)
+        .order_by(GameSession.started_at.desc())
+        .limit(limit)
+    )
+    return list(db.execute(stmt).scalars().all())
 
 
 # ── Game Results ──────────────────────────────────────────────────────────────

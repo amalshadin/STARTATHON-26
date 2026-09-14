@@ -34,7 +34,7 @@ from app.api.routes import (
     games,
     health,
     patients,
-    therapy_sessions,
+    ai,
 )
 
 logging.basicConfig(
@@ -66,9 +66,9 @@ app = FastAPI(
         {"name": "Patients", "description": "Patient management (doctor-side)"},
         {"name": "Doctors", "description": "Doctor profile"},
         {"name": "Devices", "description": "Glove device registration and calibration"},
-        {"name": "Therapy Sessions", "description": "Top-level rehabilitation session management"},
         {"name": "Game Sessions", "description": "Individual game sessions, results, and metrics"},
         {"name": "Games", "description": "Game registry"},
+        {"name": "AI Overview", "description": "Gemini-powered rehabilitation briefings and parameter suggestions"},
     ],
 )
 
@@ -89,9 +89,9 @@ app.include_router(auth.router)
 app.include_router(patients.router)
 app.include_router(doctors.router)
 app.include_router(devices.router)
-app.include_router(therapy_sessions.router)
 app.include_router(game_sessions.router)
 app.include_router(games.router)
+app.include_router(ai.router)
 
 
 # ── Root ──────────────────────────────────────────────────────────────────────

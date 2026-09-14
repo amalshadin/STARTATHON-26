@@ -1,5 +1,5 @@
 """
-Tests for therapy and game session routes:
+Tests for game session routes:
 - Creation
 - Idempotent replay
 - Game results upload
@@ -16,41 +16,44 @@ from sqlalchemy.orm import Session
 from app.db.models import Game
 
 
-def test_therapy_session_lifecycle_and_idempotency(
+def test_game_session_lifecycle_and_idempotency(
     client: TestClient, db_session: Session, mock_patient: dict
 ):
-    """Test therapy session creation and idempotent replay."""
+    """Test game session creation and idempotent replay."""
     patient_id = mock_patient["profile"].id
     headers = mock_patient["headers"]
     session_id = uuid.uuid4()
     now_iso = datetime.now(timezone.utc).isoformat()
 
+    game = db_session.execute(select(Game).where(Game.slug == "piano")).scalar_one()
+
     payload = {
         "id": str(session_id),
         "patient_id": str(patient_id),
+        "game_id": str(game.id),
         "started_at": now_iso,
-        "duration_s": 900,
+        "duration_ms": 90000,
         "status": "completed",
-        "notes": "Good progress today",
+        "configuration": {"tempo_bpm": 60},
     }
 
     # 1. First upload: 201 Created
-    res1 = client.post("/therapy-sessions", json=payload, headers=headers)
+    res1 = client.post("/game-sessions", json=payload, headers=headers)
     assert res1.status_code == 201, res1.text
     data1 = res1.json()
     assert data1["id"] == str(session_id)
-    assert data1["duration_s"] == 900
+    assert data1["duration_ms"] == 90000
 
     # 2. Replay with identical client UUID: 200 OK + idempotent header
-    res2 = client.post("/therapy-sessions", json=payload, headers=headers)
+    res2 = client.post("/game-sessions", json=payload, headers=headers)
     assert res2.status_code == 200
     assert res2.headers.get("X-Idempotent-Replayed") == "true"
     assert res2.json()["id"] == str(session_id)
 
     # 3. Retrieve via GET
-    res_get = client.get(f"/therapy-sessions/{session_id}", headers=headers)
+    res_get = client.get(f"/game-sessions/{session_id}", headers=headers)
     assert res_get.status_code == 200
-    assert res_get.json()["notes"] == "Good progress today"
+    assert res_get.json()["configuration"]["tempo_bpm"] == 60
 
 
 def test_game_session_and_metrics_upload(
@@ -63,24 +66,11 @@ def test_game_session_and_metrics_upload(
     # Retrieve seeded game
     game = db_session.execute(select(Game).where(Game.slug == "piano")).scalar_one()
 
-    # 1. Create top-level therapy session
-    therapy_id = uuid.uuid4()
-    client.post(
-        "/therapy-sessions",
-        json={
-            "id": str(therapy_id),
-            "patient_id": str(patient_id),
-            "started_at": datetime.now(timezone.utc).isoformat(),
-            "status": "completed",
-        },
-        headers=headers,
-    )
-
-    # 2. Create game session
+    # 1. Create game session directly linked to patient
     game_session_id = uuid.uuid4()
     game_session_payload = {
         "id": str(game_session_id),
-        "therapy_session_id": str(therapy_id),
+        "patient_id": str(patient_id),
         "game_id": str(game.id),
         "started_at": datetime.now(timezone.utc).isoformat(),
         "duration_ms": 120000,
@@ -92,7 +82,7 @@ def test_game_session_and_metrics_upload(
     assert res_gs.status_code == 201
     assert res_gs.json()["id"] == str(game_session_id)
 
-    # 3. Upload game result
+    # 2. Upload game result
     result_payload = {
         "score": 120,
         "accuracy": 0.85,
@@ -108,7 +98,7 @@ def test_game_session_and_metrics_upload(
     assert res_res.json()["score"] == 120
     assert res_res.json()["accuracy"] == 0.85
 
-    # 4. Upload session metrics (sensor analytics)
+    # 3. Upload session metrics (sensor analytics)
     metric_payload = {
         "algorithm_version": "v1.0",
         "metrics": {
