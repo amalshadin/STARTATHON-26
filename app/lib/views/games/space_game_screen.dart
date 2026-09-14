@@ -37,6 +37,8 @@ class _SpaceGameScreenState extends State<SpaceGameScreen>
   // State
   double _hullIntegrity = 1.0; // 100%
   double _flexThreshold = 0.5;
+  double _spawnDelay = 3.0;
+  double _baseSpeedMultiplier = 1.0;
 
   // Ship
   Offset _shipPosition = const Offset(200, 500);
@@ -74,6 +76,7 @@ class _SpaceGameScreenState extends State<SpaceGameScreen>
   final PatientApiService _apiService = PatientApiService();
   final DateTime _startTime = DateTime.now();
   bool _isSubmitting = false;
+  bool _isAiLoading = true;
 
   @override
   void initState() {
@@ -83,7 +86,43 @@ class _SpaceGameScreenState extends State<SpaceGameScreen>
       duration: const Duration(days: 99),
     )..addListener(_updateGame);
 
-    _gameLoop.forward();
+    _fetchDifficultyParameters();
+  }
+
+  Future<void> _fetchDifficultyParameters() async {
+    final params = await _apiService.getDifficultyParameters();
+    if (mounted) {
+      setState(() {
+        if (params != null) {
+          if (params.containsKey('target_threshold')) {
+            _flexThreshold = (params['target_threshold'] as num).toDouble();
+          }
+          if (params.containsKey('difficulty')) {
+            String diff = params['difficulty'].toString().toLowerCase();
+            if (diff == 'easy') {
+              _spawnDelay = 4.0;
+            } else if (diff == 'hard') {
+              _spawnDelay = 2.0;
+            } else {
+              _spawnDelay = 3.0;
+            }
+          }
+          if (params.containsKey('target_speed_bpm')) {
+            double bpm = (params['target_speed_bpm'] as num).toDouble();
+            _baseSpeedMultiplier = bpm / 60.0;
+          }
+        }
+        
+        debugPrint('--- SPACE GAME CALIBRATED PARAMS ---');
+        debugPrint('Flex Threshold: $_flexThreshold');
+        debugPrint('Spawn Delay: $_spawnDelay');
+        debugPrint('Base Speed Multiplier: $_baseSpeedMultiplier');
+        debugPrint('------------------------------------');
+
+        _isAiLoading = false;
+        _gameLoop.forward();
+      });
+    }
   }
 
   @override
@@ -166,8 +205,8 @@ class _SpaceGameScreenState extends State<SpaceGameScreen>
 
     // 3. Spawning
     _lastSpawnTime += dt;
-    if (_lastSpawnTime > 3.0) {
-      // Spawn every 3 seconds
+    if (_lastSpawnTime > _spawnDelay) {
+      // Spawn every _spawnDelay seconds
       _lastSpawnTime = 0.0;
       double randX = 30 + _random.nextDouble() * (_screenSize.width - 60);
 
@@ -202,7 +241,7 @@ class _SpaceGameScreenState extends State<SpaceGameScreen>
       if (entity.isDestroyed) continue;
 
       // Move down
-      double speed = entity.type == EntityType.empWave ? 150.0 : 100.0;
+      double speed = (entity.type == EntityType.empWave ? 150.0 : 100.0) * _baseSpeedMultiplier;
 
       if (entity.type == EntityType.fuelCore && entity.isBeingTractored) {
         // Lock onto ship slightly but don't fall as fast
@@ -548,6 +587,32 @@ class _SpaceGameScreenState extends State<SpaceGameScreen>
                 ],
               ),
             ),
+
+            // AI Loading Overlay
+            if (_isAiLoading)
+              Container(
+                color: const Color(0xFF0B0F19).withOpacity(0.95),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(color: Colors.amber),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.auto_awesome, color: Colors.amber, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'AI booting combat simulation protocols...',
+                            style: TextStyle(fontSize: 16, color: Colors.amber.withOpacity(0.8), fontStyle: FontStyle.italic),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),

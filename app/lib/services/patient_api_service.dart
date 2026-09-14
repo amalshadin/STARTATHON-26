@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:uuid/uuid.dart';
@@ -41,6 +42,22 @@ class PatientApiService {
         return data;
       } else {
         throw Exception('Failed to verify PIN: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Network error: $e');
+    }
+  }
+
+  Future<void> resetPassword(String email, String newPassword) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/auth/reset-patient-password'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': email, 'new_password': newPassword}),
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        throw Exception('Failed to reset password: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Network error: $e');
@@ -269,6 +286,48 @@ class PatientApiService {
     }
   }
 
+  Future<Map<String, dynamic>?> getProgressSummary() async {
+    if (_patientId == null) return null;
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/patients/$_patientId/progress-summary'),
+        headers: _headers,
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      }
+    } catch (e) {
+      debugPrint('Failed to get progress summary: $e');
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> getDifficultyParameters() async {
+    if (_patientId == null) return null;
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/patients/$_patientId/ai-overview'),
+        headers: _headers,
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final dynamic data = jsonDecode(response.body);
+        if (data is List && data.isNotEmpty) {
+          // Find the first one with parameter_suggestions if available
+          final target = data.firstWhere((element) => element['parameter_suggestions'] != null, orElse: () => data.first);
+          return target['parameter_suggestions'] as Map<String, dynamic>?;
+        } else if (data is Map<String, dynamic>) {
+          return data['parameter_suggestions'] as Map<String, dynamic>?;
+        }
+      }
+    } catch (e) {
+      // Ignore errors for difficulty fetch to not block game
+      print('Failed to get difficulty parameters: $e');
+    }
+    return null;
+  }
+
   Future<Map<String, dynamic>> submitGameData({
     required String gameId,
     String? deviceId,
@@ -333,6 +392,12 @@ class PatientApiService {
       retries++;
     }
     
+    if (kDebugMode) {
+      debugPrint('--- AI OVERVIEW RESULT ---');
+      debugPrint(jsonEncode(aiOverview));
+      debugPrint('--------------------------');
+    }
+
     return aiOverview;
   }
 }

@@ -63,6 +63,12 @@ class _CarRaceScreenState extends State<CarRaceScreen>
   Map<String, dynamic>? _aiOverview;
   String _submitError = '';
 
+  // Difficulty Parameters
+  bool _isAiLoading = true;
+  double _baseSpeed = 300.0;
+  double _spawnRateMultiplier = 1.0;
+  double _obstacleWidthMultiplier = 1.0;
+
   // Debug inputs
   bool _debugLeft = false;
   bool _debugRight = false;
@@ -75,6 +81,43 @@ class _CarRaceScreenState extends State<CarRaceScreen>
       vsync: this,
       duration: const Duration(days: 365),
     )..addListener(_updateGame);
+    _fetchDifficultyParameters();
+  }
+
+  Future<void> _fetchDifficultyParameters() async {
+    final params = await _apiService.getDifficultyParameters();
+    if (mounted) {
+      setState(() {
+        if (params != null) {
+          if (params.containsKey('target_speed_bpm')) {
+            double bpm = (params['target_speed_bpm'] as num).toDouble();
+            _baseSpeed = 100.0 + (bpm * 3.0);
+          }
+
+          if (params.containsKey('difficulty')) {
+            String diff = params['difficulty'].toString().toLowerCase();
+            if (diff == 'easy') {
+              _spawnRateMultiplier = 0.8;
+              _obstacleWidthMultiplier = 0.8;
+            } else if (diff == 'hard') {
+              _spawnRateMultiplier = 1.3;
+              _obstacleWidthMultiplier = 1.2;
+            } else {
+              _spawnRateMultiplier = 1.0;
+              _obstacleWidthMultiplier = 1.0;
+            }
+          }
+        }
+        
+        debugPrint('--- CAR RACE CALIBRATED PARAMS ---');
+        debugPrint('Base Speed: $_baseSpeed');
+        debugPrint('Spawn Multiplier: $_spawnRateMultiplier');
+        debugPrint('Obstacle Multiplier: $_obstacleWidthMultiplier');
+        debugPrint('----------------------------------');
+
+        _isAiLoading = false;
+      });
+    }
   }
 
   @override
@@ -177,7 +220,7 @@ class _CarRaceScreenState extends State<CarRaceScreen>
     double dt = 1 / 60.0;
 
     double dx = 0.0;
-    double speedBase = 300.0; // Base obstacle falling speed
+    double speedBase = _baseSpeed; // Base obstacle falling speed
 
     if (bleProvider.isConnected) {
       var packet = bleProvider.latestPacket;
@@ -227,7 +270,7 @@ class _CarRaceScreenState extends State<CarRaceScreen>
       // Spawn Obstacles
       _spawnTimer += dt;
       // Spawn rate based on speed
-      double spawnRate = 1.2 / (speedBase / 300.0).clamp(0.5, 2.5);
+      double spawnRate = (1.2 / (speedBase / 300.0).clamp(0.5, 2.5)) / _spawnRateMultiplier;
       if (_spawnTimer > spawnRate) {
         _spawnTimer = 0.0;
         _obstacles.add(
@@ -236,7 +279,7 @@ class _CarRaceScreenState extends State<CarRaceScreen>
               _random.nextDouble() * (_screenSize.width - _carWidth),
               -100,
             ),
-            width: 50 + _random.nextDouble() * 40,
+            width: (50 + _random.nextDouble() * 40) * _obstacleWidthMultiplier,
             height: 30 + _random.nextDouble() * 20,
             color: Colors.redAccent,
           ),
@@ -454,20 +497,39 @@ class _CarRaceScreenState extends State<CarRaceScreen>
               ),
             ),
             const SizedBox(height: 40),
-            ElevatedButton(
-              onPressed: _startGame,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: DesignTokens.primaryColor,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 40,
-                  vertical: 16,
+            if (_isAiLoading)
+              Column(
+                children: [
+                  const CircularProgressIndicator(color: Colors.cyanAccent),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.auto_awesome, color: Colors.cyanAccent, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'AI is calibrating track difficulty...',
+                        style: TextStyle(fontSize: 16, color: Colors.cyanAccent.withOpacity(0.8), fontStyle: FontStyle.italic),
+                      ),
+                    ],
+                  ),
+                ],
+              )
+            else
+              ElevatedButton(
+                onPressed: _startGame,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: DesignTokens.primaryColor,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 40,
+                    vertical: 16,
+                  ),
+                ),
+                child: const Text(
+                  'START ENGINES',
+                  style: TextStyle(fontSize: 20, color: Colors.white),
                 ),
               ),
-              child: const Text(
-                'START ENGINES',
-                style: TextStyle(fontSize: 20, color: Colors.white),
-              ),
-            ),
           ],
         ),
       ),
