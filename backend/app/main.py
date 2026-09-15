@@ -17,8 +17,10 @@ from __future__ import annotations
 import logging
 
 from fastapi import FastAPI, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
 
 from app.core.config import get_settings
 
@@ -90,6 +92,7 @@ app.include_router(patients.router)
 app.include_router(doctors.router)
 app.include_router(devices.router)
 app.include_router(game_sessions.router)
+app.include_router(game_sessions.therapy_router)
 app.include_router(games.router)
 app.include_router(ai.router)
 
@@ -109,6 +112,15 @@ def root():
 
 # ── Global Exception Handlers ─────────────────────────────────────────────────
 
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    logger.warning("Validation error on %s %s: %s", request.method, request.url.path, exc.errors())
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={"detail": exc.errors()},
+    )
+
+
 @app.exception_handler(ValueError)
 async def value_error_handler(request: Request, exc: ValueError):
     return JSONResponse(
@@ -123,4 +135,4 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={"detail": "An internal server error occurred"},
-    )
+    )

@@ -13,8 +13,10 @@ from app.schemas.session import (
 )
 from app.schemas.ai import (
     ParameterSuggestions,
+    ParameterSuggestionsResponse,
     AIOverviewResult,
     AIOverviewResponse,
     AIGenerateRequest,
 )
+
 

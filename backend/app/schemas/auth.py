@@ -49,3 +49,8 @@ class LoginResponse(BaseModel):
     token_type: str = "bearer"
     doctor: DoctorResponse
     doctor_profile: Optional[DoctorResponse] = None
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+    new_password: str = Field(..., min_length=6, description="New password")

@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     gemini_api_key: Optional[str] = Field(None, validation_alias="gemini_api_key")
     gemini_model: str = Field("gemini-2.0-flash", validation_alias="gemini_model")
 
+
     # ── Computed Properties ───────────────────────────────────────────────────
 
     @property

@@ -15,12 +15,13 @@ class GameSessionCreate(HapticBaseModel):
     POST /game-sessions — idempotent.
     configuration must include the exact game parameters used during play.
     """
-    id: uuid.UUID = Field(..., description="Client-generated UUID v4")
+    id: Optional[uuid.UUID] = Field(default_factory=uuid.uuid4, description="Client-generated UUID v4")
     patient_id: Optional[uuid.UUID] = Field(None, description="Patient UUID (defaults to authenticated patient)")
-    game_id: uuid.UUID
+    therapy_session_id: Optional[Any] = Field(None, description="Legacy therapy session id from older commits")
+    game_id: Optional[Any] = Field(None, description="Game UUID or string slug")
     device_id: Optional[uuid.UUID] = None
     calibration_id: Optional[uuid.UUID] = None
-    started_at: datetime
+    started_at: Optional[datetime] = None
     ended_at: Optional[datetime] = None
     duration_ms: Optional[int] = Field(None, ge=0)
     status: SessionStatus = SessionStatus.completed
@@ -33,6 +34,7 @@ class GameSessionCreate(HapticBaseModel):
         ),
     )
     game_version: Optional[str] = Field(None, max_length=50)
+
 
 
 class GameSessionResponse(HapticBaseModel):

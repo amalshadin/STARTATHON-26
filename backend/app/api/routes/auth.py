@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
@@ -32,7 +32,7 @@ from app.core.security import (
 from app.core.config import get_settings
 from app.db.database import get_db
 from app.db.models import Doctor, Patient, PatientInvitation, Profile, UserRole
-from app.schemas.auth import PinVerifyRequest, PinVerifyResponse, LoginRequest, LoginResponse
+from app.schemas.auth import PinVerifyRequest, PinVerifyResponse, LoginRequest, LoginResponse, ForgotPasswordRequest
 from app.schemas.doctor import DoctorCreate, DoctorResponse
 
 logger = logging.getLogger(__name__)
@@ -57,7 +57,7 @@ def verify_patient_pin(
 ) -> PinVerifyResponse:
     # 1. Find the profile by email
     profile = db.execute(
-        select(Profile).where(Profile.email == body.email)
+        select(Profile).where(Profile.email.ilike(body.email.strip()))
     ).scalar_one_or_none()
 
     if profile is None or profile.role != UserRole.patient:
@@ -347,3 +347,70 @@ def login(
         doctor=doc_resp,
         doctor_profile=doc_resp,
     )
+
+@router.post(
+    "/forgot-password",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+)
+def forgot_password(
+    body: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    profile = db.execute(
+        select(Profile).where(Profile.email.ilike(body.email))
+    ).scalar_one_or_none()
+    if profile is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    profile.hashed_password = hash_password(body.new_password)
+    db.add(profile)
+    db.commit()
+    db.refresh(profile)
+    return {"message": "Password reset successfully"}
+
+@router.post(
+    "/reset-patient-password",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+)
+def reset_patient_password(
+    body: ForgotPasswordRequest,
+    db: Session = Depends(get_db),
+):
+    profile = db.execute(
+        select(Profile).where(Profile.email.ilike(body.email))
+    ).scalar_one_or_none()
+
+    if profile is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Patient not found",
+        )
+
+    invitation = db.execute(
+        select(PatientInvitation)
+        .where(PatientInvitation.patient_id == profile.id)
+        .order_by(PatientInvitation.created_at.desc())
+    ).scalars().first()
+
+    if invitation is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Patient invitation not found",
+        )
+
+    invitation.pin_hash = hash_password(body.new_password)
+    invitation.is_used = False
+    invitation.attempt_count = 0
+    invitation.expires_at = datetime.now(timezone.utc) + timedelta(hours=settings.pin_expiry_hours)
+    db.add(invitation)
+    db.commit()
+    db.refresh(invitation)
+    return {"message": "PIN reset successfully"}
+
+
+    
+    

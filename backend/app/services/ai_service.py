@@ -17,7 +17,8 @@ from app.db.models.ai import AgentType, AIAnalysis, AIAnalysisStatus, PatientPro
 from app.db.models.game import Game
 from app.db.models.profile import Patient
 from app.db.models.session import GameResult, GameSession, SessionMetric
-from app.schemas.ai import AIOverviewResponse, ProgressSummaryResponse
+from app.schemas.ai import AIOverviewResponse, ParameterSuggestions, ProgressSummaryResponse
+
 from app.services.gemini_service import (
     generate_gemini_rehabilitation_overview,
     generate_multi_session_progress_summary,
@@ -66,6 +67,7 @@ def build_session_telemetry_payload(
 async def process_and_save_ai_analysis(
     db: Session,
     game_session_id: uuid.UUID,
+    trigger_progress_summary: bool = True,
 ) -> Optional[AIAnalysis]:
     """Runs Gemini generation for a game session and saves to ai_analyses table."""
     game_session = db.get(GameSession, game_session_id)
@@ -83,10 +85,16 @@ async def process_and_save_ai_analysis(
     stmt = select(AIAnalysis).where(AIAnalysis.game_session_id == game_session_id)
     analysis = db.execute(stmt).scalar_one_or_none()
 
+    actual_model = (
+        (settings.gemini_model or "gemini-2.0-flash")
+        if settings.gemini_api_key
+        else "fallback-rule-based"
+    )
+
     if analysis:
         analysis.status = AIAnalysisStatus.completed
         analysis.result = ai_output
-        analysis.model_version = settings.gemini_model or "gemini-2.0-flash"
+        analysis.model_version = actual_model
     else:
         analysis = AIAnalysis(
             patient_id=patient_id,
@@ -94,7 +102,7 @@ async def process_and_save_ai_analysis(
             agent_type=AgentType.clinical_summary,
             status=AIAnalysisStatus.completed,
             result=ai_output,
-            model_version=settings.gemini_model or "gemini-2.0-flash",
+            model_version=actual_model,
             confidence=0.90,
         )
         db.add(analysis)
@@ -102,6 +110,15 @@ async def process_and_save_ai_analysis(
     db.commit()
     db.refresh(analysis)
     logger.info("Saved AIAnalysis %s for patient %s", analysis.id, patient_id)
+
+    # Just after generating the overview for that specific game session, generate overview for the last 5 sessions
+    if trigger_progress_summary and patient_id:
+        try:
+            await generate_and_save_progress_summary(db, patient_id, limit=5)
+            logger.info("Auto-generated 5-session progress summary for patient %s after session %s", patient_id, game_session_id)
+        except Exception as prog_exc:
+            logger.warning("Could not auto-generate 5-session progress summary for patient %s: %s", patient_id, prog_exc)
+
     return analysis
 
 
@@ -109,7 +126,7 @@ async def run_session_analysis_background(game_session_id: uuid.UUID) -> None:
     """Entry point for FastAPI BackgroundTasks (creates its own database session)."""
     db = SessionLocal()
     try:
-        await process_and_save_ai_analysis(db, game_session_id)
+        await process_and_save_ai_analysis(db, game_session_id, trigger_progress_summary=True)
     except Exception as exc:
         logger.exception("Background AI analysis failed for session %s: %s", game_session_id, exc)
     finally:
@@ -152,13 +169,24 @@ def format_ai_response(analysis: AIAnalysis) -> AIOverviewResponse:
     )
 
 
+def extract_parameter_suggestions(analysis: AIAnalysis) -> Dict[str, Any]:
+    """Extracts and returns game-specific parameter suggestions from an AIAnalysis record."""
+    result_data = analysis.result or {}
+    raw_sugg = result_data.get("parameter_suggestions")
+    if isinstance(raw_sugg, dict):
+        return raw_sugg
+    return {}
+
+
+
+
 def get_patient_session_batch(
     db: Session,
     patient_id: uuid.UUID,
-    limit: int = 10,
+    limit: int = 5,
 ) -> list[GameSession]:
     """
-    Retrieves the most recent completed game sessions for a patient up to limit (default 10),
+    Retrieves the most recent completed game sessions for a patient up to limit (default 5),
     ordered newest to oldest. Eager-loads game, result, and session_metric.
     """
     stmt = (
@@ -192,17 +220,17 @@ def get_latest_progress_summary(
 async def generate_and_save_progress_summary(
     db: Session,
     patient_id: uuid.UUID,
-    limit: int = 10,
+    limit: int = 5,
 ) -> PatientProgressSummary:
     """
-    Collects past 3 to 10 game sessions for a patient, passes the aggregated telemetry
-    to Gemini to generate a longitudinal progress overview, and saves it to patient_progress_summaries.
-    Raises ValueError if fewer than 3 sessions exist.
+    Collects the last 5 game sessions for a patient, passes the aggregated telemetry
+    to Gemini to generate an overall rehabilitation progress overview, and saves it to patient_progress_summaries.
+    Raises ValueError if 0 sessions exist.
     """
     sessions = get_patient_session_batch(db, patient_id, limit=limit)
-    if len(sessions) < 3:
+    if not sessions:
         raise ValueError(
-            f"At least 3 completed game sessions are required to generate a progress summary. Current sessions: {len(sessions)}"
+            f"At least 1 completed game session is required to generate a progress summary. Current sessions: 0"
         )
 
     # Build telemetry payload for each session

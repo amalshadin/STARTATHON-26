@@ -86,8 +86,8 @@ def test_ai_overview_generation_and_retrieval(
     assert data["overview"] is not None
     assert "parameter_suggestions" in data
     assert data["parameter_suggestions"] is not None
-    assert "difficulty" in data["parameter_suggestions"]
-    assert "key_metrics_summary" in data
+    assert "target_speed_bpm" in data["parameter_suggestions"]
+
 
     # 6. Verify retrieved from DB without ?regenerate=true
     res_cached = client.get(

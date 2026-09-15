@@ -62,12 +62,25 @@ class AIGenerateRequest(HapticBaseModel):
 class ProgressSummaryResponse(HapticBaseModel):
     id: Optional[uuid.UUID] = None
     patient_id: uuid.UUID
-    status: str = Field(..., description="'completed' if generated, 'insufficient_data' if fewer than 3 sessions exist")
-    session_count: int = Field(..., description="Number of sessions analyzed (between 3 and 10, or current count if < 3)")
-    min_sessions_required: int = Field(3, description="Minimum sessions required for progress summary")
-    summary: Optional[str] = Field(None, description="Longitudinal rehabilitation progress overview across evaluated sessions")
+    status: str = Field(..., description="'completed' if generated, 'insufficient_data' if fewer than 1 session exists")
+    session_count: int = Field(..., description="Number of sessions analyzed (up to 5)")
+    min_sessions_required: int = Field(1, description="Minimum sessions required for progress summary")
+    summary: Optional[str] = Field(None, description="Overall rehabilitation progress overview across evaluated sessions (last 5 sessions)")
     session_ids: List[uuid.UUID] = Field(default_factory=list, description="IDs of the game sessions included in this overview")
     model_version: Optional[str] = None
     created_at: Optional[datetime] = None
     message: Optional[str] = None
+
+
+class ParameterSuggestionsResponse(HapticBaseModel):
+    patient_id: uuid.UUID
+    game_session_id: Optional[uuid.UUID] = None
+    parameter_suggestions: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Suggested parameter updates for game or therapy configuration",
+    )
+    model_version: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+
 
