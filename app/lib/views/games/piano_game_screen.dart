@@ -80,12 +80,12 @@ class _PianoGameScreenState extends State<PianoGameScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _gameLoop;
   late Difficulty _currentDifficulty;
-  DifficultySettings get _settings =>
-      DifficultySettings.settings[_currentDifficulty]!;
+  late DifficultySettings _settings;
   final PatientApiService _apiService = PatientApiService();
 
   DateTime _startTime = DateTime.now();
   bool _isSubmitting = false;
+  bool _isAiLoading = true;
 
   final List<RibbonNote> _activeNotes = [];
   final List<SensorPacket> _sessionPackets = [];
@@ -111,12 +111,42 @@ class _PianoGameScreenState extends State<PianoGameScreen>
   void initState() {
     super.initState();
     _currentDifficulty = widget.mode;
+    _settings = DifficultySettings.settings[_currentDifficulty]!;
     _gameLoop = AnimationController(
       vsync: this,
       duration: const Duration(days: 99), // Run endlessly
     )..addListener(_updateGame);
 
-    _gameLoop.forward();
+    _fetchDifficultyParameters();
+  }
+
+  Future<void> _fetchDifficultyParameters() async {
+    final params = await _apiService.getDifficultyParameters();
+    if (mounted) {
+      setState(() {
+        if (params != null) {
+          _settings = DifficultySettings(
+            threshold: (params['target_threshold'] as num?)?.toDouble() ?? _settings.threshold,
+            holdDuration: _settings.holdDuration,
+            fallSpeed: params.containsKey('target_speed_bpm') 
+                ? ((params['target_speed_bpm'] as num).toDouble() * 2.5) 
+                : _settings.fallSpeed,
+            spawnDelay: params.containsKey('target_speed_bpm') 
+                ? (60.0 / ((params['target_speed_bpm'] as num).toDouble() / 2.0)) 
+                : _settings.spawnDelay,
+          );
+        }
+        
+        debugPrint('--- PIANO GAME CALIBRATED PARAMS ---');
+        debugPrint('Threshold: ${_settings.threshold}');
+        debugPrint('Fall Speed: ${_settings.fallSpeed}');
+        debugPrint('Spawn Delay: ${_settings.spawnDelay}');
+        debugPrint('------------------------------------');
+
+        _isAiLoading = false;
+        _gameLoop.forward();
+      });
+    }
   }
 
   @override
@@ -498,6 +528,32 @@ class _PianoGameScreenState extends State<PianoGameScreen>
               }),
             ),
           ),
+
+          // AI Loading Overlay
+          if (_isAiLoading)
+            Container(
+              color: const Color(0xFF0F172A).withOpacity(0.95),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const CircularProgressIndicator(color: DesignTokens.secondaryColor),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.auto_awesome, color: DesignTokens.secondaryColor, size: 20),
+                        const SizedBox(width: 8),
+                        Text(
+                          'AI synchronizing with your rhythm...',
+                          style: TextStyle(fontSize: 16, color: DesignTokens.secondaryColor.withOpacity(0.8), fontStyle: FontStyle.italic),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );

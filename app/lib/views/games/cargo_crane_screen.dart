@@ -68,6 +68,7 @@ class _CargoCraneScreenState extends State<CargoCraneScreen>
   final PatientApiService _apiService = PatientApiService();
   final DateTime _startTime = DateTime.now();
   bool _isSubmitting = false;
+  bool _isAiLoading = true;
   final List<SensorPacket> _sessionPackets = [];
 
   @override
@@ -80,7 +81,33 @@ class _CargoCraneScreenState extends State<CargoCraneScreen>
       duration: const Duration(days: 99),
     )..addListener(_updateGame);
 
-    _gameLoop.forward();
+    _fetchDifficultyParameters();
+  }
+
+  Future<void> _fetchDifficultyParameters() async {
+    final params = await _apiService.getDifficultyParameters();
+    if (mounted) {
+      setState(() {
+        if (params != null) {
+          if (params.containsKey('target_threshold')) {
+            _flexThreshold = (params['target_threshold'] as num).toDouble();
+          }
+          if (params.containsKey('target_speed_bpm')) {
+            double bpm = (params['target_speed_bpm'] as num).toDouble();
+            _transitTimeout = 15.0 - (bpm / 10.0);
+            if (_transitTimeout < 5.0) _transitTimeout = 5.0;
+          }
+        }
+        
+        debugPrint('--- CARGO CRANE CALIBRATED PARAMS ---');
+        debugPrint('Flex Threshold: $_flexThreshold');
+        debugPrint('Transit Timeout: $_transitTimeout');
+        debugPrint('-------------------------------------');
+
+        _isAiLoading = false;
+        _gameLoop.forward();
+      });
+    }
   }
 
   @override
@@ -644,6 +671,32 @@ class _CargoCraneScreenState extends State<CargoCraneScreen>
                 style: TextStyle(color: Colors.white30),
               ),
             ),
+
+            // AI Loading Overlay
+            if (_isAiLoading)
+              Container(
+                color: const Color(0xFF0F172A).withOpacity(0.95),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const CircularProgressIndicator(color: DesignTokens.primaryColor),
+                      const SizedBox(height: 24),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.auto_awesome, color: DesignTokens.primaryColor, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'AI calibrating crane physics...',
+                            style: TextStyle(fontSize: 16, color: DesignTokens.primaryColor.withOpacity(0.8), fontStyle: FontStyle.italic),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),

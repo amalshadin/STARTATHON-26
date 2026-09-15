@@ -43,6 +43,100 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _showForgotPasswordDialog() async {
+    final emailCtrl = TextEditingController(text: _emailController.text);
+    final passwordCtrl = TextEditingController();
+    bool isResetting = false;
+
+    await showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(DesignTokens.borderRadiusLarge),
+              ),
+              title: const Text('Reset Password'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: emailCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'Email Address',
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(DesignTokens.borderRadiusMedium),
+                        borderSide: BorderSide.none,
+                      ),
+                      prefixIcon: const Icon(Icons.email_outlined, color: DesignTokens.primaryColor),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: passwordCtrl,
+                    decoration: InputDecoration(
+                      labelText: 'New Password / PIN',
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(DesignTokens.borderRadiusMedium),
+                        borderSide: BorderSide.none,
+                      ),
+                      prefixIcon: const Icon(Icons.lock_outline, color: DesignTokens.primaryColor),
+                    ),
+                    obscureText: true,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isResetting ? null : () => Navigator.pop(ctx),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+                ),
+                ElevatedButton(
+                  onPressed: isResetting ? null : () async {
+                    if (emailCtrl.text.isEmpty || passwordCtrl.text.isEmpty) return;
+                    setStateDialog(() => isResetting = true);
+                    try {
+                      await _apiService.resetPassword(emailCtrl.text, passwordCtrl.text);
+                      if (ctx.mounted) {
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(widget.key != null ? ctx : context).showSnackBar(
+                          const SnackBar(content: Text('Password reset successfully. Please login.')),
+                        );
+                      }
+                    } catch (e) {
+                      if (ctx.mounted) {
+                        ScaffoldMessenger.of(widget.key != null ? ctx : context).showSnackBar(
+                          SnackBar(content: Text('Failed to reset: $e')),
+                        );
+                      }
+                    } finally {
+                      if (ctx.mounted) {
+                        setStateDialog(() => isResetting = false);
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: DesignTokens.primaryColor,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: isResetting 
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) 
+                      : const Text('Reset'),
+                ),
+              ],
+            );
+          }
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -161,6 +255,19 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: _isLoading 
                                 ? const CircularProgressIndicator(color: Colors.white)
                                 : const Text('Login', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        
+                        // Forgot Password
+                        TextButton(
+                          onPressed: _isLoading ? null : _showForgotPasswordDialog,
+                          child: Text(
+                            'Forgot Password?',
+                            style: TextStyle(
+                              color: DesignTokens.primaryColor.withOpacity(0.8),
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ],
